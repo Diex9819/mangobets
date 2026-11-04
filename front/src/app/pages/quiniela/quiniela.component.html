@@ -1,0 +1,387 @@
+﻿<app-navbar></app-navbar>
+
+<div class="container">
+
+  <h2>Quinielas ⚽</h2>
+
+  <!-- 🏷️ IDENTIDAD DEL VISITANTE -->
+  <div class="identidad" *ngIf="!cargando">
+    <span *ngIf="haySesion">
+      👤 Sesión iniciada como <strong>{{ nombreSesion }}</strong>
+    </span>
+
+    <ng-container *ngIf="!haySesion">
+      <span *ngIf="alias">
+        🏷️ Pronosticando como <strong>{{ alias }}</strong>
+        <button class="btn-link" (click)="cambiarAlias()">cambiar</button>
+      </span>
+      <span *ngIf="!alias">
+        🏷️ Podés pronosticar sin iniciar sesión. Te vamos a pedir un alias.
+      </span>
+    </ng-container>
+  </div>
+
+  <!-- 🔄 CARGANDO -->
+  <div *ngIf="cargando" class="estado">
+    <span class="spinner"></span> Cargando jornada…
+  </div>
+
+  <!-- ❌ ERROR -->
+  <div *ngIf="!cargando && errorMessage && !jornada" class="alerta error">
+    <span>{{ errorMessage }}</span>
+    <button class="btn-reintentar" (click)="cargarJornada()">Reintentar</button>
+  </div>
+
+  <!-- 👑 ADMIN: GESTIÓN DE JORNADAS -->
+  <!-- Fuera del bloque de la jornada a propósito: el panel se muestra
+       SIEMPRE para el admin, incluso sin ninguna jornada activa, así
+       puede crear la primera desde la interfaz sin tocar la base. -->
+  <app-quiniela-admin
+    *ngIf="esAdmin"
+    [refreshKey]="refreshAdminKey"
+    (publicado)="cargarJornada()"
+    (jornadaCreada)="cargarJornada()"
+  ></app-quiniela-admin>
+
+  <!-- 📅 JORNADA -->
+  <ng-container *ngIf="!cargando && jornada">
+
+    <div class="jornada-header">
+      <h3>{{ jornada.nombre }}</h3>
+      <span class="contador">
+        {{ totalPronosticados }}/{{ totalPartidos }} pronosticados
+      </span>
+
+      <!-- 👑 ADMIN: GESTIÓN DE PARTICIPANTES / SOLICITUDES DE PAGO -->
+      <div class="jornada-header-admin" *ngIf="esAdmin">
+        <button class="btn-gestionar-participantes" (click)="abrirGestionParticipantes()">
+          👥 Gestionar Participantes
+          <span *ngIf="solicitudesPendientes > 0" class="badge-pendientes">{{ solicitudesPendientes }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ✅ AVISO DE GUARDADO -->
+    <div *ngIf="aviso" class="alerta ok">{{ aviso }}</div>
+
+    <!-- ⚠️ ERROR AL GUARDAR -->
+    <div *ngIf="errorMessage" class="alerta error">{{ errorMessage }}</div>
+
+    <!-- 🔒 BLOQUEO: LA JORNADA YA CERRÓ -->
+    <div *ngIf="bloqueada" class="bloqueo">
+      🔒 Los pronósticos para esta jornada ya cerraron
+    </div>
+
+    <div class="partidos-grid">
+
+      <div class="partido-fila" *ngFor="let partido of jornada.partidos">
+
+        <!-- 🎯 PRONÓSTICO: MARCADOR EXACTO (nombres + goles entre equipos) -->
+        <div class="opciones" *ngIf="!partido.resultadoOficial">
+          <span class="marcado local">{{ partido.local }}</span>
+          <input
+            type="number"
+            class="goles"
+            min="0"
+            inputmode="numeric"
+            [ngModel]="marcadorActual(partido).golesLocal"
+            [disabled]="bloqueada || enviada"
+            (ngModelChange)="actualizarGoles(partido, 'L', $event)"
+          />
+          <span class="marcado-sep">-</span>
+          <input
+            type="number"
+            class="goles"
+            min="0"
+            inputmode="numeric"
+            [ngModel]="marcadorActual(partido).golesVisita"
+            [disabled]="bloqueada || enviada"
+            (ngModelChange)="actualizarGoles(partido, 'V', $event)"
+          />
+          <span class="marcado visitante">{{ partido.visitante }}</span>
+        </div>
+
+        <!-- 🕒 HORARIO -->
+        <div class="horario">
+          🕒 {{ partido.horario | date:'dd/MM/yyyy HH:mm' }}
+        </div>
+
+        <!-- 🏁 RESULTADO OFICIAL -->
+        <div class="resultado-oficial" *ngIf="partido.resultadoOficial">
+          <div class="resultado-linea">
+            <span class="resultado-label">Resultado Oficial:</span>
+            <strong class="resultado-valor">
+              {{ partido.local }} [ {{ partido.resultadoOficial.golesLocal }} ] - [ {{ partido.resultadoOficial.golesVisita }} ] {{ partido.visitante }}
+            </strong>
+          </div>
+
+          <!-- ✅ / ❌ ¿Coincidió con el pronóstico del usuario? -->
+          <div
+            class="acierto"
+            *ngIf="partido.miPronostico"
+            [ngClass]="acerto(partido) ? 'acierto-si' : 'acierto-no'"
+          >
+            <ng-container *ngIf="acerto(partido); else fallo">
+              ✅ ¡Marcador exacto! Pronosticaste {{ partido.miPronostico.golesLocal }} - {{ partido.miPronostico.golesVisita }}
+            </ng-container>
+            <ng-template #fallo>
+              ❌ No coincidió. Pronosticaste {{ partido.miPronostico.golesLocal }} - {{ partido.miPronostico.golesVisita }}
+            </ng-template>
+          </div>
+        </div>
+
+        <!-- 👑 ADMIN: CARGAR RESULTADO OFICIAL -->
+        <app-quiniela-admin
+          *ngIf="esAdmin"
+          [jornada]="jornada"
+          [partido]="partido"
+          (publicado)="cargarJornada()"
+        ></app-quiniela-admin>
+
+      </div>
+
+    </div>
+
+    <!-- 💾 GUARDAR QUINIELA COMPLETA (lote) -->
+    <div class="guardar-quiniela" *ngIf="!bloqueada && !enviada && totalPartidos > 0">
+      <button
+        class="btn-guardar"
+        [disabled]="guardando"
+        (click)="guardarQuiniela()"
+      >
+        {{ guardando ? '⏳ Guardando…' : '📋 Ver Resumen de Quiniela' }}
+      </button>
+    </div>
+
+    <!-- ✅ QUINIELA ENVIADA / CONFIRMADA -->
+    <div *ngIf="enviada" class="estado-enviada">
+      ✅ Quiniela Enviada / Confirmada
+    </div>
+
+    <!-- 🏆 TABLA DE POSICIONES -->
+    <section class="tabla-posiciones" *ngIf="!cargando && posiciones.length > 0">
+      <h3>🏆 Tabla de Posiciones</h3>
+
+      <table class="tabla-posiciones-tabla">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Participante</th>
+            <th>Aciertos Exactos</th>
+            <th>Resultados</th>
+            <th>Puntos</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of posiciones; let i = index">
+            <td>{{ i === 0 ? '🥇' : i + 1 }}</td>
+            <td>
+              <button type="button" class="btn-part-name" (click)="abrirDetalleParticipante(p)">
+                {{ p.alias || p.userId || 'Anónimo' }}
+              </button>
+            </td>
+            <td>{{ p.aciertosExactos }}</td>
+            <td>{{ p.resultados }}</td>
+            <td><strong>{{ p.puntos }}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 📭 SIN PARTIDOS -->
+    <div *ngIf="totalPartidos === 0" class="estado">
+      Esta jornada todavía no tiene partidos cargados.
+    </div>
+
+  </ng-container>
+
+</div>
+
+<!-- 🏷️ MODAL: PEDIR ALIAS -->
+<div
+  *ngIf="mostrarFormAlias"
+  class="modal"
+  (click)="cancelarAlias()"
+>
+  <div class="modal-content" (click)="$event.stopPropagation()">
+
+    <h3>¿Cómo te identificás?</h3>
+
+    <p class="modal-texto">
+      Para guardar tu pronóstico necesitás un nombre o alias.
+      Así se sabrá de quién es cada pronóstico.
+    </p>
+
+    <div class="form-group">
+      <label for="aliasInput">Alias</label>
+      <input
+        id="aliasInput"
+        type="text"
+        maxlength="40"
+        placeholder="Ej: Juan, Mesa 3, Los Mbappe"
+        [(ngModel)]="aliasInput"
+        (keyup.enter)="confirmarAlias()"
+        [class.invalido]="aliasError"
+      />
+      <small class="error" *ngIf="aliasError">{{ aliasError }}</small>
+    </div>
+
+    <div class="acciones">
+      <button (click)="confirmarAlias()">Guardar</button>
+      <button (click)="cancelarAlias()">Cancelar</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- 🗂️ MODAL: RESUMEN DE QUINIELA (2 PASOS: ver → confirmar) -->
+<div
+  *ngIf="mostrarResumen"
+  class="modal"
+  (click)="cerrarResumen()"
+>
+  <div class="modal-content" (click)="$event.stopPropagation()">
+
+    <h3>📋 Resumen de la Quiniela</h3>
+
+    <p class="modal-texto">
+      Revisá los marcadores antes de confirmar el envío definitivo.
+    </p>
+
+    <div class="resumen-lista">
+      <div class="resumen-item" *ngFor="let p of resumenPartidos">
+        <span class="resumen-equipo">{{ p.local }} vs {{ p.visitante }}</span>
+        <span class="resumen-marcador">{{ p.golesLocal }} - {{ p.golesVisita }}</span>
+      </div>
+    </div>
+
+    <div class="acciones">
+      <button class="btn-resumen-editar" (click)="cerrarResumen()">✏️ Editar Marcadores</button>
+      <button
+        class="btn-resumen-confirmar"
+        [disabled]="guardando"
+        (click)="confirmarYMandar()"
+      >
+        {{ guardando ? '⏳ Enviando…' : '🚀 Confirmar y Enviar Definitivamente' }}
+      </button>
+    </div>
+
+    <small class="error" *ngIf="errorMessage">{{ errorMessage }}</small>
+
+  </div>
+</div>
+
+<!-- 🗂️ MODAL: DETALLE DE PRONÓSTICO DEL PARTICIPANTE -->
+<div
+  *ngIf="mostrarDetalleParticipante && participanteSeleccionado"
+  class="modal"
+  (click)="cerrarDetalleParticipante()"
+>
+  <div class="modal-content" (click)="$event.stopPropagation()">
+
+    <h3>🔍 Detalle del Pronóstico</h3>
+
+    <p class="modal-texto">
+      Pronósticos de
+      <strong>{{ participanteSeleccionado.alias || participanteSeleccionado.userId || 'Anónimo' }}</strong>
+    </p>
+
+    <div class="resumen-lista">
+      <div class="resumen-item" *ngFor="let pr of pronosticosDelParticipante">
+        <span class="resumen-equipo">
+          {{ pr.local || 'Local' }} [ {{ pr.golesLocal }} ] - [ {{ pr.golesVisita }} ] {{ pr.visitante || 'Visitante' }}
+        </span>
+      </div>
+    </div>
+
+    <div class="acciones">
+      <button (click)="cerrarDetalleParticipante()">Cerrar</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- 🗂️ MODAL: GESTIÓN DE PARTICIPANTES (ADMIN) -->
+<div
+  *ngIf="mostrarGestionParticipantes && esAdmin"
+  class="modal"
+  (click)="cerrarGestionParticipantes()"
+>
+  <div class="modal-content" (click)="$event.stopPropagation()">
+
+    <h3>👥 Gestión de Participantes</h3>
+
+    <p class="modal-texto">
+      Solicitudes de aprobación de pago y participantes aprobados de la jornada.
+    </p>
+
+    <!-- 💳 SOLICITUDES DE APROBACIÓN DE PAGO -->
+    <div class="admin-participantes">
+      <h4>💳 Solicitudes de Aprobación de Pago</h4>
+
+      <div *ngIf="participantesError" class="alerta error">
+        <span>{{ participantesError }}</span>
+      </div>
+
+      <div *ngIf="participantesExito" class="alerta ok">
+        <span>{{ participantesExito }}</span>
+      </div>
+
+      <div class="admin-part-lista" *ngIf="participantes.length > 0">
+        <div
+          class="admin-part-item"
+          *ngFor="let part of participantes.filter((p) => p.estadoPago === 'PENDIENTE')"
+        >
+          <div class="admin-part-info">
+            <strong>{{ part.alias || part.userId || 'Anónimo' }}</strong>
+            <small>{{ part.pronosticos.length }} pronóstico(s)</small>
+          </div>
+          <div class="admin-part-acciones">
+            <button class="btn-mini ok" (click)="cambiarEstadoPago(part, 'APROBADO')">
+              ✅ Aprobar / Pagado
+            </button>
+            <button class="btn-mini peligro" (click)="cambiarEstadoPago(part, 'RECHAZADO')">
+              ❌ Rechazar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-part-vacio" *ngIf="participantes.length === 0">
+        Sin solicitudes de pago por aprobar.
+      </div>
+    </div>
+
+    <div class="admin-participantes">
+      <h4>✅ Participantes Aprobados de la Jornada</h4>
+
+      <div
+        class="admin-part-lista"
+        *ngIf="participantes.filter((p) => p.estadoPago === 'APROBADO').length > 0"
+      >
+        <div
+          class="admin-part-item"
+          *ngFor="let part of participantes.filter((p) => p.estadoPago === 'APROBADO')"
+        >
+          <div class="admin-part-info">
+            <strong>{{ part.alias || part.userId || 'Anónimo' }}</strong>
+            <small>{{ part.pronosticos.length }} pronóstico(s)</small>
+          </div>
+          <span class="admin-part-estado">✅ Aprobado / Pagado</span>
+        </div>
+      </div>
+
+      <div
+        class="admin-part-vacio"
+        *ngIf="participantes.filter((p) => p.estadoPago === 'APROBADO').length === 0"
+      >
+        Todavía no hay participantes aprobados.
+      </div>
+    </div>
+
+    <div class="acciones">
+      <button (click)="cerrarGestionParticipantes()">Cerrar</button>
+    </div>
+
+  </div>
+</div>

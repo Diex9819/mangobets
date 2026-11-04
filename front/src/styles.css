@@ -1,0 +1,384 @@
+/* ═══════════════════════════════════════════════════════
+   🍊 MANGOBETS ⚽ — SISTEMA DE DISEÑO
+   Tema claro, moderno y deportivo.
+   Los tokens viven aquí y se consumen desde los componentes
+   con var(--mb-*) para mantener la coherencia visual.
+   ═══════════════════════════════════════════════════════ */
+
+:root {
+  /* ─── 🏟️ Superficies ─── */
+  --mb-bg: #f1f5f9;
+  --mb-surface: #ffffff;
+  --mb-surface-2: #f8fafc;
+  --mb-surface-3: #eef2f7;
+
+  /* ─── 🟢 Verde deportivo (primario) ─── */
+  --mb-primary: #16a34a;
+  --mb-primary-hover: #15803d;
+  --mb-primary-soft: #dcfce7;
+  --mb-primary-ring: rgba(22, 163, 74, 0.18);
+
+  /* ─── 🍊 Naranja mango (acento) ─── */
+  --mb-accent: #f97316;
+  --mb-accent-hover: #ea580c;
+  --mb-accent-soft: #ffedd5;
+  --mb-accent-ring: rgba(249, 115, 22, 0.2);
+
+  /* ─── 🔵 Azul (opción "Visita") ─── */
+  --mb-info: #0284c7;
+  --mb-info-hover: #0369a1;
+  --mb-info-soft: #e0f2fe;
+  --mb-info-ring: rgba(2, 132, 199, 0.18);
+
+  /* ─── ✍️ Tinta / texto ─── */
+  --mb-ink: #0f172a;
+  --mb-ink-2: #334155;
+  --mb-muted: #64748b;
+  --mb-faint: #94a3b8;
+
+  /* ─── 📦 Bordes y líneas ─── */
+  --mb-border: #e2e8f0;
+  --mb-border-strong: #cbd5e1;
+
+  /* ─── ⚠️ Estados ─── */
+  --mb-danger: #dc2626;
+  --mb-danger-hover: #b91c1c;
+  --mb-danger-soft: #fee2e2;
+  --mb-warning: #d97706;
+  --mb-warning-soft: #fef3c7;
+
+  /* ─── 📐 Formas ─── */
+  --mb-radius-xs: 8px;
+  --mb-radius-sm: 10px;
+  --mb-radius: 12px;
+  --mb-radius-lg: 16px;
+  --mb-radius-xl: 22px;
+  --mb-radius-pill: 999px;
+
+  /* ─── 🌤️ Sombras suaves ─── */
+  --mb-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --mb-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --mb-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 10px 24px -8px rgba(15, 23, 42, 0.12);
+  --mb-shadow-lg: 0 4px 10px rgba(15, 23, 42, 0.06), 0 24px 48px -16px rgba(15, 23, 42, 0.22);
+  --mb-ring: 0 0 0 3px var(--mb-primary-ring);
+
+  /* ─── ⚡ Transiciones ─── */
+  --mb-transition: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ═══════════════
+   RESET / BASE
+   ═══════════════ */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  color: var(--mb-ink);
+  background-color: var(--mb-bg);
+  background-image:
+    radial-gradient(900px 420px at 100% -8%, rgba(249, 115, 22, 0.14), transparent 62%),
+    radial-gradient(760px 380px at 0% -6%, rgba(22, 163, 74, 0.13), transparent 60%);
+  background-attachment: fixed;
+
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+  color: var(--mb-ink);
+  letter-spacing: -0.015em;
+}
+
+a {
+  color: var(--mb-primary);
+}
+
+/* ═══════════════
+   BOTONES BASE
+   ═══════════════ */
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: transform var(--mb-transition), box-shadow var(--mb-transition),
+    background-color var(--mb-transition), border-color var(--mb-transition),
+    color var(--mb-transition);
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--mb-ink);
+  background: var(--mb-surface);
+  border: 1px solid var(--mb-border);
+  border-radius: var(--mb-radius-sm);
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color var(--mb-transition), box-shadow var(--mb-transition);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--mb-primary);
+  box-shadow: var(--mb-ring);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--mb-faint);
+}
+
+/* ═══════════════
+   CLASES COMPARTIDAS
+   (aplican a todos los componentes)
+   ═══════════════ */
+
+/* 📦 Tarjeta base */
+.mb-card {
+  background: var(--mb-surface);
+  border: 1px solid var(--mb-border);
+  border-radius: var(--mb-radius);
+  box-shadow: var(--mb-shadow-sm);
+}
+
+/* 🔘 Botón principal (verde) */
+.mb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  background: var(--mb-primary);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+
+  padding: 10px 18px;
+  border-radius: var(--mb-radius-sm);
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25);
+}
+
+.mb-btn:hover:not(:disabled) {
+  background: var(--mb-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(22, 163, 74, 0.3);
+}
+
+.mb-btn:disabled {
+  opacity: 0.5;
+  box-shadow: none;
+}
+
+/* 🔘 Botón acento (mango) */
+.mb-btn-accent {
+  background: var(--mb-accent);
+  box-shadow: 0 2px 6px rgba(249, 115, 22, 0.25);
+}
+
+.mb-btn-accent:hover:not(:disabled) {
+  background: var(--mb-accent-hover);
+  box-shadow: 0 6px 16px rgba(249, 115, 22, 0.3);
+}
+
+/* 🔘 Botón neutro */
+.mb-btn-ghost {
+  background: var(--mb-surface-2);
+  color: var(--mb-ink-2);
+  border: 1px solid var(--mb-border);
+  box-shadow: none;
+}
+
+.mb-btn-ghost:hover:not(:disabled) {
+  background: var(--mb-surface-3);
+  color: var(--mb-ink);
+  box-shadow: var(--mb-shadow-xs);
+}
+
+/* 🔘 Botón de peligro */
+.mb-btn-danger {
+  background: var(--mb-danger);
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
+}
+
+.mb-btn-danger:hover:not(:disabled) {
+  background: var(--mb-danger-hover);
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.3);
+}
+
+/* 🏷️ Etiquetas / badges */
+.mb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+
+  padding: 3px 10px;
+  border-radius: var(--mb-radius-pill);
+  background: var(--mb-surface-3);
+  color: var(--mb-muted);
+}
+
+.mb-badge-primary {
+  background: var(--mb-primary-soft);
+  color: var(--mb-primary-hover);
+}
+
+.mb-badge-accent {
+  background: var(--mb-accent-soft);
+  color: var(--mb-accent-hover);
+}
+
+.mb-badge-danger {
+  background: var(--mb-danger-soft);
+  color: var(--mb-danger-hover);
+}
+
+/* 🗂️ Tabs */
+.mb-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.mb-tabs button {
+  background: var(--mb-surface);
+  color: var(--mb-muted);
+  border: 1px solid var(--mb-border);
+
+  font-size: 14px;
+  font-weight: 600;
+
+  padding: 9px 16px;
+  border-radius: var(--mb-radius-pill);
+  box-shadow: var(--mb-shadow-xs);
+}
+
+.mb-tabs button:hover {
+  color: var(--mb-ink);
+  border-color: var(--mb-border-strong);
+}
+
+.mb-tabs button.active {
+  background: var(--mb-primary);
+  border-color: var(--mb-primary);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);
+}
+
+/* 🪟 Modal */
+.mb-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.mb-modal-content {
+  background: var(--mb-surface);
+  color: var(--mb-ink);
+
+  width: 100%;
+  max-width: 560px;
+  max-height: 88vh;
+  overflow-y: auto;
+
+  padding: 24px;
+  border-radius: var(--mb-radius-lg);
+  box-shadow: var(--mb-shadow-lg);
+  border: 1px solid var(--mb-border);
+
+  animation: mb-pop 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes mb-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 📋 Tabla */
+.mb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.mb-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--mb-muted);
+
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--mb-border);
+  background: var(--mb-surface-2);
+}
+
+.mb-table td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--mb-border);
+}
+
+.mb-table tbody tr:hover {
+  background: var(--mb-surface-2);
+}
+
+/* 📭 Estado vacío */
+.mb-empty {
+  padding: 34px 16px;
+  text-align: center;
+  color: var(--mb-muted);
+  font-size: 14px;
+}
+
+/* 🔤 Título de sección */
+.mb-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--mb-muted);
+  margin: 0 0 10px;
+}

@@ -1,0 +1,32 @@
+<div class="navbar">
+
+  <!-- LOGO -->
+  <div class="logo" routerLink="/quiniela">
+    <span class="ball">⚽</span>
+    <span>MangoBets ⚽</span>
+  </div>
+
+  <!-- MENU -->
+  <div class="menu">
+
+    <!-- ⚽ QUINIELAS: visible siempre (público) -->
+    <a routerLink="/quiniela" routerLinkActive="active">
+      Quinielas
+    </a>
+
+  </div>
+
+  <!-- USER (solo si hay sesión iniciada) -->
+  <div class="user" *ngIf="haySesion">
+    <div class="avatar">👤</div>
+    <span>{{ user.name }}</span>
+    <span *ngIf="isAdmin" class="admin-badge">👑 Admin</span>
+    <button (click)="logout()">Salir</button>
+  </div>
+
+  <!-- 🔐 LOGIN (solo si no hay sesión iniciada) -->
+  <div class="login-action" *ngIf="!haySesion">
+    <a routerLink="/login" class="btn-login">Iniciar Sesión</a>
+  </div>
+
+</div>

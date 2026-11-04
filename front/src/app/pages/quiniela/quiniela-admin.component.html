@@ -1,0 +1,320 @@
+<!-- ════════════════════════════════════
+     MODO 1: PUBLICAR RESULTADO OFICIAL
+     ════════════════════════════════════ -->
+<ng-container *ngIf="modoResultado">
+
+  <div class="admin-resultado">
+
+    <button class="btn-admin" (click)="alternarEditor()">
+      <ng-container *ngIf="partido?.resultadoOficial; else sinResultado">
+        🏁 Resultado: {{ partido?.resultadoOficial?.golesLocal ?? 0 }} - {{ partido?.resultadoOficial?.golesVisita ?? 0 }} (cambiar)
+      </ng-container>
+      <ng-template #sinResultado>
+        🏁 Cargar Resultado Oficial
+      </ng-template>
+    </button>
+
+    <div class="editor" *ngIf="mostrarEditor">
+
+      <div class="editor-marcador">
+        <label>Resultado exacto</label>
+        <div class="editor-marcador-fila">
+          <input
+            type="number"
+            class="goles"
+            min="0"
+            [ngModel]="resultadoElegido?.golesLocal ?? 0"
+            (ngModelChange)="setResultadoGoles('L', $event)"
+          />
+          <span class="editor-marcador-sep">-</span>
+          <input
+            type="number"
+            class="goles"
+            min="0"
+            [ngModel]="resultadoElegido?.golesVisita ?? 0"
+            (ngModelChange)="setResultadoGoles('V', $event)"
+          />
+        </div>
+      </div>
+
+      <button class="btn-publicar" [disabled]="publicando" (click)="publicar()">
+        {{ publicando ? 'Publicando…' : 'Publicar resultado' }}
+      </button>
+
+      <small class="error" *ngIf="error">{{ error }}</small>
+
+      <small class="aviso" *ngIf="!error">
+        Al publicar el resultado, el partido deja de admitir pronósticos.
+      </small>
+
+    </div>
+
+  </div>
+
+</ng-container>
+
+<!-- ════════════════════════════════════
+     MODO 2: GESTIÓN DE JORNADAS
+     ════════════════════════════════════ -->
+<ng-container *ngIf="!modoResultado">
+
+  <div class="admin-panel">
+
+    <h3>👑 Gestión de jornadas</h3>
+
+    <!-- 📋 JORNADAS EXISTENTES -->
+    <div class="bloque">
+      <h4>Jornadas</h4>
+
+      <div *ngIf="cargandoJornadas" class="mini-estado">Cargando…</div>
+
+      <div *ngIf="!cargandoJornadas && jornadas.length === 0" class="mini-estado">
+        Todavía no hay jornadas.
+      </div>
+
+      <div class="jornada-item" *ngFor="let j of jornadas">
+
+        <!-- ── Editar el nombre ── -->
+        <div
+          class="jornada-info"
+          *ngIf="editandoNombreId !== j.id; else editandoNombre"
+          (click)="alternarPartidos(j.id)"
+        >
+          <span class="jornada-nombre">{{ j.nombre }}</span>
+          <span class="badge" [class.activa]="j.activa">
+            {{ j.activa ? '🟢 Activa' : 'Inactiva' }}
+          </span>
+          <span class="jornada-count">{{ j.partidos.length }} partidos</span>
+        </div>
+
+        <ng-template #editandoNombre>
+          <div class="jornada-info">
+            <input
+              type="text"
+              class="input-nombre"
+              maxlength="100"
+              [(ngModel)]="nombreJornadaForm"
+              (keyup.enter)="guardarEdicionNombre(j)"
+            />
+            <button class="btn-mini ok" [disabled]="guardandoNombre" (click)="guardarEdicionNombre(j)">
+              ✓
+            </button>
+            <button class="btn-mini" (click)="cancelarEdicionNombre()">✕</button>
+          </div>
+        </ng-template>
+
+        <!-- ── Acciones ── -->
+        <div class="jornada-acciones">
+          <button
+            class="btn-mini"
+            title="Editar nombre"
+            (click)="iniciarEdicionNombre(j)"
+          >
+            ✏️
+          </button>
+
+          <button
+            class="btn-agregar-partido"
+            title="Agregar partido"
+            (click)="abrirAgregarPartido(j.id)"
+          >
+            ➕ Agregar Partido
+          </button>
+
+          <button
+            class="btn-activar"
+            *ngIf="!j.activa"
+            [disabled]="activandoId === j.id"
+            (click)="activar(j.id)"
+          >
+            {{ activandoId === j.id ? 'Activando…' : 'Activar' }}
+          </button>
+
+          <button
+            class="btn-mini"
+            [class.activa]="expandidaId === j.id"
+            [title]="expandidaId === j.id ? 'Ocultar partidos' : 'Ver partidos'"
+            (click)="alternarPartidos(j.id)"
+          >
+            {{ expandidaId === j.id ? '▾' : '▸' }}
+          </button>
+
+          <button
+            class="btn-mini peligro"
+            title="Eliminar jornada"
+            (click)="pedirBorrado('jornada', j)"
+          >
+            🗑️
+          </button>
+        </div>
+
+        <!-- ── Partidos de la jornada ── -->
+        <div class="partidos-lista" *ngIf="expandidaId === j.id">
+
+          <div class="mini-estado" *ngIf="j.partidos.length === 0">
+            Esta jornada no tiene partidos.
+          </div>
+
+          <div class="partido-admin" *ngFor="let p of j.partidos">
+
+            <!-- Vista normal -->
+            <ng-container *ngIf="!editandoPartido || editandoPartido.partido.id !== p.id">
+              <div class="partido-info">
+                <span class="partido-equipos">{{ p.local }} vs {{ p.visitante }}</span>
+                <span class="partido-hora">{{ p.horario | date:'dd/MM/yyyy HH:mm' }}</span>
+                <span class="badge resultado" *ngIf="p.resultadoOficial">
+                  🏁 {{ p.resultadoOficial.golesLocal }} - {{ p.resultadoOficial.golesVisita }}
+                </span>
+              </div>
+
+              <div class="partido-acciones">
+                <button
+                  class="btn-mini"
+                  title="Editar partido"
+                  (click)="editarPartido(j.id, p)"
+                >
+                  ✏️
+                </button>
+                <button
+                  class="btn-mini peligro"
+                  title="Eliminar partido"
+                  (click)="pedirBorrado('partido', j, p)"
+                >
+                  🗑️
+                </button>
+              </div>
+            </ng-container>
+
+            <!-- Edición -->
+            <div class="partido-edit" *ngIf="editandoPartido && editandoPartido.partido.id === p.id">
+              <input type="text" placeholder="Local" [(ngModel)]="partidoForm.local" />
+              <input type="text" placeholder="Visitante" [(ngModel)]="partidoForm.visitante" />
+              <input type="datetime-local" [(ngModel)]="partidoForm.horario" />
+
+              <div class="partido-edit-acciones">
+                <button class="btn-mini ok" [disabled]="guardandoEdicion" (click)="guardarEdicion()">
+                  {{ guardandoEdicion ? '⏳' : '✓' }}
+                </button>
+                <button class="btn-mini" (click)="cancelarEdicion()">✕</button>
+              </div>
+
+              <small class="error" *ngIf="errorEdicion">{{ errorEdicion }}</small>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- ➕ Agregar partido a la jornada -->
+        <div class="partido-edit" *ngIf="agregarPartidoAbiertoId === j.id">
+          <input type="text" placeholder="Local" [(ngModel)]="formAgregarPartido.local" />
+          <input type="text" placeholder="Visitante" [(ngModel)]="formAgregarPartido.visitante" />
+          <input type="datetime-local" [(ngModel)]="formAgregarPartido.horario" />
+
+          <div class="partido-edit-acciones">
+            <button class="btn-mini ok" [disabled]="guardandoAgregarPartido" (click)="guardarPartido(j.id)">
+              ✓
+            </button>
+            <button class="btn-mini" (click)="cancelarAgregarPartido()">✕</button>
+          </div>
+
+          <small class="error" *ngIf="errorAgregarPartido">{{ errorAgregarPartido }}</small>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 🆕 CREAR JORNADA -->
+    <div class="bloque">
+      <h4>Nueva jornada</h4>
+
+      <div class="form-group">
+        <label>Nombre</label>
+        <input
+          type="text"
+          maxlength="100"
+          placeholder="Ej: Fecha 12 - Clausura"
+          [(ngModel)]="nuevaJornada.nombre"
+        />
+      </div>
+
+      <label class="check">
+        <input type="checkbox" [(ngModel)]="nuevaJornada.activa" />
+        Activar esta jornada (desactiva la vigente)
+      </label>
+
+      <div class="partidos-form">
+        <div class="partido-fila" *ngFor="let p of nuevaJornada.partidos; let i = index">
+
+          <input
+            type="text"
+            placeholder="Local"
+            [(ngModel)]="nuevaJornada.partidos[i].local"
+          />
+
+          <input
+            type="text"
+            placeholder="Visitante"
+            [(ngModel)]="nuevaJornada.partidos[i].visitante"
+          />
+
+          <input
+            type="datetime-local"
+            [(ngModel)]="nuevaJornada.partidos[i].horario"
+          />
+
+          <button
+            class="btn-quitar"
+            title="Quitar partido"
+            (click)="quitarPartido(i)"
+          >
+            ✖
+          </button>
+
+        </div>
+      </div>
+
+      <button class="btn-agregar" (click)="agregarPartido()">+ Agregar partido</button>
+
+      <div class="acciones-admin">
+        <button class="btn-crear" [disabled]="creating" (click)="crearJornada()">
+          {{ creating ? 'Creando…' : 'Crear jornada' }}
+        </button>
+      </div>
+
+      <small class="error" *ngIf="createError">{{ createError }}</small>
+
+    </div>
+
+  </div>
+
+  <!-- 🗑️ CONFIRMACIÓN DE BORRADO -->
+  <div *ngIf="borrando" class="modal" (click)="cancelarBorrado()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+
+      <h3>
+        {{ borrando.tipo === 'jornada' ? 'Eliminar jornada' : 'Eliminar partido' }}
+      </h3>
+
+      <p class="modal-texto">
+        <ng-container *ngIf="borrando.tipo === 'jornada'; else textoPartido">
+          Se eliminará la jornada <strong>{{ borrando.nombre }}</strong>
+          y todos los pronósticos de sus partidos. No se puede deshacer.
+        </ng-container>
+        <ng-template #textoPartido>
+          Se eliminará el partido <strong>{{ borrando.nombre }}</strong>
+          y sus pronósticos. No se puede deshacer.
+        </ng-template>
+      </p>
+
+      <div class="acciones">
+        <button class="peligro" [disabled]="eliminando" (click)="confirmarBorrado()">
+          {{ eliminando ? 'Eliminando…' : 'Eliminar' }}
+        </button>
+        <button (click)="cancelarBorrado()">Cancelar</button>
+      </div>
+
+    </div>
+  </div>
+
+</ng-container>

@@ -1,0 +1,187 @@
+/* ═══════════════════════════════════════
+   🍊 MANGOBETS — LOGIN
+   ═══════════════════════════════════════ */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+}
+
+/* ─── 📇 TARJETA ─── */
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+
+  background: var(--mb-surface);
+  border: 1px solid var(--mb-border);
+  border-radius: var(--mb-radius-xl);
+  box-shadow: var(--mb-shadow-lg);
+  padding: 40px 32px;
+
+  animation: mb-pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ─── 🍊 LOGO ─── */
+.login-logo {
+  display: grid;
+  place-items: center;
+
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+
+  font-size: 32px;
+  border-radius: 20px;
+
+  background: linear-gradient(135deg, var(--mb-accent), var(--mb-primary));
+  box-shadow: 0 10px 26px rgba(249, 115, 22, 0.3);
+}
+
+.login-card h2 {
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(90deg, var(--mb-accent), var(--mb-primary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+  font-size: 14px;
+  margin-bottom: 26px;
+  color: var(--mb-muted);
+}
+
+/* ─── 📝 INPUTS ─── */
+.form-group {
+  margin-bottom: 14px;
+  text-align: left;
+}
+
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--mb-muted);
+  margin-bottom: 6px;
+}
+
+.login-card input {
+  width: 100%;
+  padding: 13px 14px;
+  margin: 0;
+
+  font-size: 15px;
+
+  background: var(--mb-surface-2);
+  border: 1px solid var(--mb-border);
+  border-radius: var(--mb-radius-sm);
+  color: var(--mb-ink);
+  outline: none;
+
+  transition: border-color var(--mb-transition), box-shadow var(--mb-transition),
+    background-color var(--mb-transition);
+}
+
+.login-card input:focus {
+  background: var(--mb-surface);
+  border-color: var(--mb-primary);
+  box-shadow: var(--mb-ring);
+}
+
+.login-card input::placeholder {
+  color: var(--mb-faint);
+}
+
+/* ─── 🔘 BOTÓN ─── */
+.login-card button[type='submit'] {
+  width: 100%;
+  margin-top: 8px;
+  padding: 14px;
+
+  background: linear-gradient(135deg, var(--mb-primary), #0d9488);
+  color: #fff;
+
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: var(--mb-radius-sm);
+
+  box-shadow: 0 6px 18px rgba(22, 163, 74, 0.28);
+}
+
+.login-card button[type='submit']:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px rgba(22, 163, 74, 0.36);
+}
+
+.login-card button[type='submit']:disabled {
+  opacity: 0.6;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ─── ❌ ERROR ─── */
+.error {
+  margin: 16px 0 0;
+  padding: 11px 14px;
+
+  background: var(--mb-danger-soft);
+  color: var(--mb-danger-hover);
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  border-radius: var(--mb-radius-sm);
+
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+}
+
+/* ─── 🍊 PIE ─── */
+.login-foot {
+  margin: 24px 0 0;
+  font-size: 12px;
+  color: var(--mb-faint);
+}
+
+/* ═══════════════════════════════════════
+   📱 MOBILE
+   ═══════════════════════════════════════ */
+@media (max-width: 480px) {
+  .login-container {
+    padding: 16px;
+    align-items: flex-start;
+    padding-top: 40px;
+  }
+
+  .login-card {
+    padding: 30px 20px;
+    border-radius: var(--mb-radius-lg);
+  }
+
+  .login-logo {
+    width: 56px;
+    height: 56px;
+    font-size: 28px;
+  }
+
+  .login-card h2 {
+    font-size: 23px;
+  }
+
+  /* 16px evita el zoom automático en iOS */
+  .login-card input {
+    padding: 14px;
+    font-size: 16px;
+  }
+
+  .login-card button[type='submit'] {
+    padding: 15px;
+    font-size: 16px;
+  }
+}
