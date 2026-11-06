@@ -25,9 +25,17 @@ export interface Jornada {
   id: string;
   nombre: string;
   activa: boolean;
+  /** 💰 Premio acumulado (bolsa) para la jornada */
+  premio?: number;
   partidos: PartidoQuiniela[];
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface ActualizarPremioResponse {
+  success: boolean;
+  message: string;
+  premio: number;
 }
 
 export interface Pronostico {

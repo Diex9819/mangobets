@@ -15,6 +15,7 @@ import {
   OperacionAdminResponse,
   ListarParticipantesResponse,
   ListarPosicionesResponse,
+  ActualizarPremioResponse,
 } from '../models/quiniela.model';
 
 /**
@@ -97,6 +98,18 @@ export class QuinielaService {
   getPosiciones(jornadaId: string): Observable<ListarPosicionesResponse> {
     return this.http.get<ListarPosicionesResponse>(
       `${this.apiUrl}/jornadas/${jornadaId}/posiciones`,
+      { headers: this.authHeaders() }
+    );
+  }
+
+  // 💰 ACTUALIZAR PREMIO ACUMULADO (BOLSA) DE UNA JORNADA (solo admin)
+  actualizarPremio(
+    jornadaId: string,
+    premio: number
+  ): Observable<ActualizarPremioResponse> {
+    return this.http.patch<ActualizarPremioResponse>(
+      `${this.apiUrl}/admin/jornadas/${jornadaId}/premio`,
+      { premio },
       { headers: this.authHeaders() }
     );
   }

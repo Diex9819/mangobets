@@ -436,6 +436,17 @@ export const listarPosiciones = async (req, res) => {
 
     const pronosticos = await Pronostico.find({ partidoId: { $in: ids } }).lean();
 
+    // 🔒 Privacidad: los pronósticos detallados de los participantes son
+    //    privados hasta que la jornada inicie (hora del primer partido).
+    //    El administrador puede verlos en cualquier momento.
+    const esAdmin = Boolean(req.user && req.user.role === 'ADMIN');
+    const primerPartido = jornada.partidos
+      .slice()
+      .sort((a, b) => new Date(a.horario).getTime() - new Date(b.horario).getTime())[0];
+    const inicioMs = primerPartido ? new Date(primerPartido.horario).getTime() : null;
+    const iniciada = inicioMs !== null && Date.now() >= inicioMs;
+    const puedeVerPicks = esAdmin || iniciada;
+
     // 🗂️ Agrupar pronósticos por persona (identidad)
     const participantesMap = new Map();
 
@@ -516,7 +527,8 @@ export const listarPosiciones = async (req, res) => {
         alias: participante.alias,
         aliasKey: participante.aliasKey,
         estadoPago: participante.estadoPago,
-        pronosticos: participante.pronosticos,
+        // 🔒 Antes de iniciar la jornada los picks son privados (salvo admin)
+        pronosticos: puedeVerPicks ? participante.pronosticos : [],
         puntos,
         aciertosExactos,
         resultados
@@ -543,6 +555,7 @@ function formatJornada(doc, miPronosticoDe) {
     id: doc._id.toString(),
     nombre: doc.nombre,
     activa: doc.activa,
+    premio: doc.premio ?? 0,
     partidos: doc.partidos.map((p) => {
       const miPronostico = miPronosticoDe(p._id);
 

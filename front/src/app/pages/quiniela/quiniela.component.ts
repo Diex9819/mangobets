@@ -1,7 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { NavbarComponent } from '../../share/navbar/navbar.component';
 import { QuinielaAdminComponent } from './quiniela-admin.component';
 import { QuinielaService } from '../../services/quiniela.service';
 import { AuthService } from '../../services/auth.service';
@@ -10,11 +9,8 @@ import {
   MarcadorGoles,
   PartidoQuiniela,
   ParticipanteQuiniela,
-  PosicionQuiniela,
   PronosticoBatchItem,
-  PronosticoParticipante,
   ListarParticipantesResponse,
-  ListarPosicionesResponse,
 } from '../../models/quiniela.model';
 
 // 📌 Clave de localStorage donde se guarda el alias del visitante
@@ -23,7 +19,7 @@ const ALIAS_KEY = 'quinielaAlias';
 @Component({
   selector: 'app-quiniela',
   standalone: true,
-  imports: [CommonModule, FormsModule, NavbarComponent, QuinielaAdminComponent],
+  imports: [CommonModule, FormsModule, QuinielaAdminComponent],
   templateUrl: './quiniela.component.html',
   styleUrl: './quiniela.component.css',
 })
@@ -41,24 +37,19 @@ export class QuinielaComponent implements OnInit {
   // ✅ ¿La quiniela ya fue enviada formalmente? (flujo de 2 pasos: resumen → confirmar)
   enviada = false;
 
+  // ⚠️ Aviso de bloqueo: el usuario ya envió sus resultados y están bloqueados
+  advertencia = '';
+
   // 📋 Participantes de la jornada (vista admin: aprobación de pagos)
   participantes: ParticipanteQuiniela[] = [];
   participantesError = '';
   participantesExito = '';
-
-  // 🏆 Tabla de posiciones (leaderboard)
-  posiciones: PosicionQuiniela[] = [];
-  posicionesError = '';
 
   // 🎯 Borradores locales de marcadores (antes de enviarlos por lote)
   drafts: Record<string, MarcadorGoles> = {};
 
   // 📋 Estado del modal de resumen de la quiniela
   mostrarResumen = false;
-
-  // 🗂️ Estado del modal de detalle de pronóstico de un participante
-  mostrarDetalleParticipante = false;
-  participanteSeleccionado: ParticipanteQuiniela | null = null;
 
   // 🗂️ Estado del modal de gestión de participantes (admin)
   mostrarGestionParticipantes = false;
@@ -114,6 +105,14 @@ export class QuinielaComponent implements OnInit {
     this.cargando = true;
     this.errorMessage = '';
 
+    // 🧹 Reset estado transitorio (aviso/errores/modal/drafts) en cada carga
+    //    → evita que alertas o pronósticos de un usuario anterior se queden pegados
+    this.aviso = '';
+    this.mostrarResumen = false;
+    this.resumenPartidos = [];
+    this.drafts = {};
+    this.pendiente = null;
+
     // Sin sesión se manda el alias para recuperar el propio pronóstico
     const alias = this.haySesion ? undefined : (this.alias || undefined);
 
@@ -125,11 +124,19 @@ export class QuinielaComponent implements OnInit {
         this.bloqueada = this.esJornadaCerrada(jornada);
         this.enviada = (jornada.partidos || []).some((p) => p.miPronostico?.enviado);
 
+        // ⚠️ Si la jornada ya fue enviada por este usuario/alias → bloquear pronósticos
+        if (this.enviada) {
+          const ident = this.haySesion
+            ? this.nombreSesion
+            : this.alias;
+          this.advertencia = `⚠️ El usuario ${ident || 'invitado'} ya envió sus resultados para esta jornada y están bloqueados.`;
+        } else {
+          this.advertencia = '';
+        }
+
         if (this.esAdmin) {
           this.cargarParticipantes();
         }
-
-        this.cargarPosiciones();
       },
       error: (err) => {
         this.cargando = false;
@@ -184,6 +191,7 @@ export class QuinielaComponent implements OnInit {
   // Cada lado se actualiza de forma 100% independiente en su propio draft.
   actualizarGoles(partido: PartidoQuiniela, lado: 'L' | 'V', valor: number) {
     if (this.bloqueada) return; // la jornada ya cerró
+    if (this.enviada) return; // ya se envió → bloqueado
     if (partido.resultadoOficial) return;
 
     const draft: MarcadorGoles = { ...(this.drafts[partido.id] || {}) };
@@ -199,7 +207,15 @@ export class QuinielaComponent implements OnInit {
 
   // 💾 Guardar TODA la quiniela (todos los partidos pronosticables) en un solo request
   guardarQuiniela(): void {
-    if (this.guardando || this.bloqueada || this.enviada) return;
+    if (this.guardando) return;
+    if (this.bloqueada) return;
+
+    // 🔒 Bloqueo estricto: si ya se envió, no se permite reintentar
+    if (this.enviada) {
+      this.advertencia = `⚠️ El usuario ${this.haySesion ? this.nombreSesion : this.alias || 'invitado'} ya envió sus resultados para esta jornada y están bloqueados.`;
+      return;
+    }
+
     if (!this.jornada) return;
 
     const hayAlgo = this.jornada.partidos.some(
@@ -248,18 +264,6 @@ export class QuinielaComponent implements OnInit {
     this.mostrarResumen = false;
   }
 
-  // 🔍 Abrir el detalle de pronóstico de un participante (modal)
-  abrirDetalleParticipante(part: ParticipanteQuiniela) {
-    this.participanteSeleccionado = part;
-    this.mostrarDetalleParticipante = true;
-  }
-
-  // ✖️ Cerrar el modal de detalle de pronóstico
-  cerrarDetalleParticipante() {
-    this.mostrarDetalleParticipante = false;
-    this.participanteSeleccionado = null;
-  }
-
   // 👑 Abrir el modal de gestión de participantes (admin)
   abrirGestionParticipantes() {
     this.mostrarGestionParticipantes = true;
@@ -273,11 +277,6 @@ export class QuinielaComponent implements OnInit {
   // 🔢 Cantidad de solicitudes de pago pendientes (badge del botón admin)
   get solicitudesPendientes(): number {
     return this.participantes.filter((p) => p.estadoPago === 'PENDIENTE').length;
-  }
-
-  // 📋 Pronósticos del participante seleccionado (con equipos y goles)
-  get pronosticosDelParticipante(): PronosticoParticipante[] {
-    return this.participanteSeleccionado?.pronosticos || [];
   }
 
   // 🚀 Confirmar y enviar definitivamente → POST batch oficial
@@ -310,10 +309,12 @@ export class QuinielaComponent implements OnInit {
           this.mostrarResumen = false;
           this.enviada = true;
 
-          this.aviso = '✅ ¡Quiniela guardada con éxito!';
-
           // 🔄 Refleja los pronósticos guardados en la vista
           this.cargarJornada();
+
+          // ✅ Aviso de éxito (después de la recarga para que cargarJornada no lo borre)
+          this.aviso = '✅ ¡Quiniela guardada con éxito!';
+          this.advertencia = ''; // ✅ Tras un envío exitoso ya no aplica bloqueo
         },
         error: (err) => {
           this.guardando = false;
@@ -360,6 +361,15 @@ export class QuinielaComponent implements OnInit {
     this.aliasError = '';
     this.pendiente = null;
     this.mostrarFormAlias = true;
+
+    // 🧹 Al cambiar de usuario/alias: limpiar estado transitorio y pronósticos previos
+    this.aviso = '';
+    this.errorMessage = '';
+    this.advertencia = '';
+    this.mostrarResumen = false;
+    this.resumenPartidos = [];
+    this.drafts = {};
+    this.enviada = false;
   }
 
   // 👑 Cargar participantes de la jornada activa (con estado de pago)
@@ -410,25 +420,6 @@ export class QuinielaComponent implements OnInit {
       });
   }
 
-  // 🏆 Cargar tabla de posiciones (leaderboard)
-  cargarPosiciones() {
-    if (!this.jornada) {
-      return;
-    }
-
-    this.quinielaService
-      .getPosiciones(this.jornada.id)
-      .subscribe({
-        next: (res) => {
-          this.posiciones = res.posicion || [];
-        },
-        error: (err) => {
-          this.posicionesError =
-            err.error?.error || err.error?.message || 'Error al calcular las posiciones';
-        }
-      });
-  }
-
   // ❌ Cancelar el formulario de alias
   cancelarAlias() {
     this.mostrarFormAlias = false;
@@ -449,8 +440,8 @@ export class QuinielaComponent implements OnInit {
     );
   }
 
-  // ✅ ¿El pronóstico (marcador exacto) coincidió con el resultado oficial?
-  acerto(partido: PartidoQuiniela): boolean {
+  // ✅ ¿Coincidió el marcador exacto?
+  aciertoExacto(partido: PartidoQuiniela): boolean {
     const oficial = partido.resultadoOficial;
     const pronostico = partido.miPronostico;
 
@@ -460,5 +451,28 @@ export class QuinielaComponent implements OnInit {
       pronostico.golesLocal === oficial.golesLocal &&
       pronostico.golesVisita === oficial.golesVisita
     );
+  }
+
+  // 🟡 ¿Aconderon el ganador / el resultado (sin acertar el marcador exacto)?
+  aciertoGanador(partido: PartidoQuiniela): boolean {
+    const oficial = partido.resultadoOficial;
+    const pronostico = partido.miPronostico;
+
+    if (!oficial || !pronostico) return false;
+
+    // Si ya fue acierto exacto, el caso 1 (verde) ya aplica
+    if (
+      pronostico.golesLocal === oficial.golesLocal &&
+      pronostico.golesVisita === oficial.golesVisita
+    ) {
+      return false;
+    }
+
+    const predioGano = pronostico.golesLocal > pronostico.golesVisita;
+    const ofiGano = oficial.golesLocal > oficial.golesVisita;
+    const predioEmpate = pronostico.golesLocal === pronostico.golesVisita;
+    const ofiEmpate = oficial.golesLocal === oficial.golesVisita;
+
+    return (predioGano && ofiGano) || (predioEmpate && ofiEmpate);
   }
 }

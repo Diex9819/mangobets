@@ -66,6 +66,13 @@ const jornadaSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // 💰 Premio acumulado (bolsa) para la jornada.
+    // Lo carga el admin desde el panel y la tabla pública lo muestra.
+    premio: {
+      type: Number,
+      default: 0,
+      min: [0, 'premio debe ser >= 0'],
+    },
     partidos: [partidoSchema],
     esDemo: {
       type: Boolean,

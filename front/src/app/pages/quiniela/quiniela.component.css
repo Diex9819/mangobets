@@ -150,11 +150,10 @@ h2 {
 
 .partido-fila {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
-  gap: 16px;
+  gap: 10px;
 
   background: var(--mb-surface);
   border: 1px solid var(--mb-border);
@@ -183,13 +182,14 @@ h2 {
 
 /* ─── 🏁 RESULTADO OFICIAL ─── */
 .resultado-oficial {
-  flex-basis: 100%;
+  width: 100%;
 
   background: var(--mb-surface-2);
   border: 1px solid var(--mb-border);
   border-radius: var(--mb-radius);
   padding: 11px 12px;
   font-size: 13px;
+  text-align: center;
 }
 
 .resultado-linea {
@@ -229,14 +229,30 @@ h2 {
   color: var(--mb-primary-hover);
 }
 
+.acierto-parcial {
+  color: var(--mb-warning);
+}
+
 .acierto-no {
   color: var(--mb-danger);
 }
 
 /* ═══════════════════════════════════════
    🎯 PRONÓSTICO: MARCADOR EXACTO
+   ── Diseño de 3 columnas en una línea: Local (der.) | Centro ([gL] - [gV]) | Visitante (izq.)
+   ── Mobile-first: se adapta a pantallas chicas sin desbordar.
    ═══════════════════════════════════════ */
 .opciones {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  width: 100%;
+}
+
+.marcador-centro {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -270,16 +286,29 @@ h2 {
   color: var(--mb-faint);
 }
 
+/* Nombres: local alineado a la derecha del input, visitante a la izquierda */
 .opciones .marcado.local {
   font-size: 13px;
   font-weight: 700;
   color: var(--mb-ink);
+  justify-self: end;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .opciones .marcado.visitante {
   font-size: 13px;
   font-weight: 700;
   color: var(--mb-ink);
+  justify-self: start;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .opciones .goles:disabled {
@@ -404,6 +433,12 @@ h2 {
   color: var(--mb-danger-hover);
 }
 
+.alerta.warn {
+  background: var(--mb-warning-soft);
+  border: 1px solid var(--mb-warning);
+  color: var(--mb-warning);
+}
+
 .btn-reintentar {
   background: var(--mb-surface);
   border: 1px solid currentColor;
@@ -515,22 +550,6 @@ h2 {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-}
-
-/* 🔍 BOTÓN DE PARTICIPANTE EN TABLA DE POSICIONES / LISTAS */
-.btn-part-name {
-  background: none;
-  border: none;
-  padding: 0;
-  font: inherit;
-  font-weight: 800;
-  color: inherit;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.btn-part-name:hover {
-  text-decoration: underline;
 }
 
 .acciones button {
@@ -653,57 +672,6 @@ h2 {
 .btn-resumen-confirmar:disabled {
   opacity: 0.65;
   cursor: not-allowed;
-}
-
-/* 🏆 TABLA DE POSICIONES (LEADERBOARD) */
-.tabla-posiciones {
-  margin-bottom: 22px;
-}
-
-.tabla-posiciones h3 {
-  margin: 0 0 12px;
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--mb-ink);
-}
-
-.tabla-posiciones-tabla {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--mb-surface);
-  border: 1px solid var(--mb-border);
-  border-radius: var(--mb-radius);
-  overflow: hidden;
-}
-
-.tabla-posiciones-tabla th,
-.tabla-posiciones-tabla td {
-  padding: 11px 14px;
-  font-size: 13px;
-  text-align: center;
-  border-bottom: 1px solid var(--mb-border);
-}
-
-.tabla-posiciones-tabla th {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--mb-muted);
-  background: var(--mb-surface-2);
-}
-
-.tabla-posiciones-tabla th:first-child,
-.tabla-posiciones-tabla td:first-child {
-  text-align: left;
-}
-
-.tabla-posiciones-tabla tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.tabla-posiciones-tabla tbody tr:hover {
-  background: var(--mb-surface-2);
 }
 
 /* 👑 ADMIN: PARTICIPANTES / APROBACIÓN DE PAGO */
@@ -834,6 +802,13 @@ h2 {
   .opciones .goles {
     min-height: 44px;
     width: 52px;
+  }
+
+  /* Nombres de equipos un poco más chicos para no desbordar en móvil */
+  .opciones .marcado.local,
+  .opciones .marcado.visitante {
+    font-size: 0.85rem;
+    max-width: 120px;
   }
 
   .acciones button {

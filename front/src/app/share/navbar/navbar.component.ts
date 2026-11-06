@@ -1,7 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { RouterModule } from '@angular/router';
+import { Subscription } from 'rxjs';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-navbar',
@@ -10,24 +12,40 @@ import { RouterModule } from '@angular/router';
   templateUrl: './navbar.component.html',
   styleUrl: './navbar.component.css',
 })
-export class NavbarComponent {
-  user = JSON.parse(localStorage.getItem('user') || '{}');
+export class NavbarComponent implements OnInit, OnDestroy {
 
-  constructor(private router: Router) {}
+  user: any = {};
+  haySesion = false;
+
+  private userSub?: Subscription;
+
+  constructor(
+    private authService: AuthService,
+    private router: Router
+  ) {}
+
+  ngOnInit() {
+    // 🧠 Suscribirse al estado reactivo del usuario → el navbar se actualiza solo
+    this.userSub = this.authService.user$.subscribe((user) => {
+      this.user = user;
+      this.haySesion = !!this.authService.getToken() && !!(user && user.name);
+    });
+  }
+
+  ngOnDestroy() {
+    this.userSub?.unsubscribe();
+  }
+
+  // 👑 ¿Es administrador? (habilita el panel de gestión de jornadas)
+  get isAdmin(): boolean {
+    return this.user?.role === 'ADMIN';
+  }
 
   logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    this.router.navigate(['/quiniela']);
-  }
+    // 🔓 Limpiar sesión (token + user) y actualizar estado reactivo
+    this.authService.logout();
 
-  get isAdmin() {
-    return this.user.role === 'ADMIN';
-  }
-
-  // 🔐 ¿Hay sesión iniciada?
-  // Si no la hay, el navbar solo muestra el logo y la pestaña pública (Quinielas).
-  get haySesion() {
-    return !!localStorage.getItem('token') && !!this.user?.name;
+    // 🚪 Redirigir a la vista pública (Home / Tabla de Posiciones)
+    this.router.navigate(['/']);
   }
 }

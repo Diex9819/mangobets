@@ -2,12 +2,19 @@ import { Routes } from '@angular/router';
 
 // 📦 COMPONENTES
 import { LoginComponent } from './pages/login/login.component';
+import { HomeComponent } from './pages/home/home.component';
 import { QuinielaComponent } from './pages/quiniela/quiniela.component';
 
 // 🔐 GUARDS
 import { guestGuard } from './guards/guest-guard';
 
 export const routes: Routes = [
+  // 🏆 HOME: TABLA DE POSICIONES (leaderboard) — página principal
+  {
+    path: '',
+    component: HomeComponent,
+  },
+
   // 🔐 LOGIN
   {
     path: 'login',
@@ -21,16 +28,9 @@ export const routes: Routes = [
     component: QuinielaComponent,
   },
 
-  // 🔄 REDIRECCIÓN
-  {
-    path: '',
-    redirectTo: 'quiniela',
-    pathMatch: 'full',
-  },
-
   // ❌ RUTA NO EXISTENTE
   {
     path: '**',
-    redirectTo: 'quiniela',
+    redirectTo: '',
   },
 ];

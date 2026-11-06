@@ -315,6 +315,45 @@ export const editarJornada = async (req, res) => {
   }
 };
 
+// 👑 ACTUALIZAR PREMIO ACUMULADO (BOLSA) DE UNA JORNADA
+export const actualizarPremio = async (req, res) => {
+  try {
+    const { jornadaId } = req.params;
+    const { premio } = req.body;
+
+    if (!mongoose.isValidObjectId(jornadaId)) {
+      return res.status(400).json({ error: 'ID de jornada inválido' });
+    }
+
+    const valor = Number(premio);
+
+    if (!Number.isFinite(valor) || valor < 0) {
+      return res.status(422).json({
+        error: 'Validation failed',
+        details: [{ field: 'premio', message: 'premio debe ser un número >= 0' }]
+      });
+    }
+
+    const jornada = await Jornada.findById(jornadaId);
+
+    if (!jornada) {
+      return res.status(404).json({ error: 'Jornada no encontrada', id: jornadaId });
+    }
+
+    jornada.premio = valor;
+    await jornada.save();
+
+    res.json({
+      success: true,
+      message: 'Premio actualizado',
+      premio: jornada.premio
+    });
+  } catch (err) {
+    console.error('Error en actualizarPremio (quiniela admin):', err);
+    res.status(500).json({ error: 'Error al actualizar el premio' });
+  }
+};
+
 // 👑 ELIMINAR JORNADA
 // También borra los pronósticos de sus partidos para no dejar huérfanos.
 export const eliminarJornada = async (req, res) => {
@@ -586,6 +625,7 @@ function formatJornadaAdmin(doc) {
     id: doc._id.toString(),
     nombre: doc.nombre,
     activa: doc.activa,
+    premio: doc.premio ?? 0,
     partidos: doc.partidos.map((p) => ({
       id: p._id.toString(),
       local: p.local,

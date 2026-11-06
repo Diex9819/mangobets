@@ -18,7 +18,8 @@ import {
   eliminarPartido,
   publicarResultado,
   listarParticipantes,
-  aprobarParticipante
+  aprobarParticipante,
+  actualizarPremio
 } from '../controllers/quinielaAdmin.controller.js';
 
 const router = express.Router();
@@ -50,6 +51,9 @@ router.post('/admin/jornadas', verifyToken, isAdmin, crearJornada);
 
 // ✏️ Editar el nombre de la jornada
 router.patch('/admin/jornadas/:jornadaId', verifyToken, isAdmin, editarJornada);
+
+// 💰 Actualizar el premio acumulado (bolsa) de la jornada
+router.patch('/admin/jornadas/:jornadaId/premio', verifyToken, isAdmin, actualizarPremio);
 
 // 🟢 Activar una jornada
 router.patch('/admin/jornadas/:jornadaId/activar', verifyToken, isAdmin, activarJornada);

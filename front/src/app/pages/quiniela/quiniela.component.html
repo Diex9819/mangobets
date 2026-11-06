@@ -1,6 +1,4 @@
-﻿<app-navbar></app-navbar>
-
-<div class="container">
+﻿<div class="container">
 
   <h2>Quinielas ⚽</h2>
 
@@ -64,6 +62,11 @@
     <!-- ✅ AVISO DE GUARDADO -->
     <div *ngIf="aviso" class="alerta ok">{{ aviso }}</div>
 
+    <!-- ⚠️ AVISO DE BLOQUEO: QUINIELA YA ENVIADA -->
+    <div *ngIf="advertencia" class="alerta warn">
+      <span>{{ advertencia }}</span>
+    </div>
+
     <!-- ⚠️ ERROR AL GUARDAR -->
     <div *ngIf="errorMessage" class="alerta error">{{ errorMessage }}</div>
 
@@ -79,25 +82,27 @@
         <!-- 🎯 PRONÓSTICO: MARCADOR EXACTO (nombres + goles entre equipos) -->
         <div class="opciones" *ngIf="!partido.resultadoOficial">
           <span class="marcado local">{{ partido.local }}</span>
-          <input
-            type="number"
-            class="goles"
-            min="0"
-            inputmode="numeric"
-            [ngModel]="marcadorActual(partido).golesLocal"
-            [disabled]="bloqueada || enviada"
-            (ngModelChange)="actualizarGoles(partido, 'L', $event)"
-          />
-          <span class="marcado-sep">-</span>
-          <input
-            type="number"
-            class="goles"
-            min="0"
-            inputmode="numeric"
-            [ngModel]="marcadorActual(partido).golesVisita"
-            [disabled]="bloqueada || enviada"
-            (ngModelChange)="actualizarGoles(partido, 'V', $event)"
-          />
+          <span class="marcador-centro">
+            <input
+              type="number"
+              class="goles"
+              min="0"
+              inputmode="numeric"
+              [ngModel]="marcadorActual(partido).golesLocal"
+              [disabled]="bloqueada || enviada"
+              (ngModelChange)="actualizarGoles(partido, 'L', $event)"
+            />
+            <span class="marcado-sep">-</span>
+            <input
+              type="number"
+              class="goles"
+              min="0"
+              inputmode="numeric"
+              [ngModel]="marcadorActual(partido).golesVisita"
+              [disabled]="bloqueada || enviada"
+              (ngModelChange)="actualizarGoles(partido, 'V', $event)"
+            />
+          </span>
           <span class="marcado visitante">{{ partido.visitante }}</span>
         </div>
 
@@ -115,18 +120,35 @@
             </strong>
           </div>
 
-          <!-- ✅ / ❌ ¿Coincidió con el pronóstico del usuario? -->
+          <!-- ✅ / 🟡 / ❌ ¿Coincidió con el pronóstico del usuario? -->
           <div
             class="acierto"
             *ngIf="partido.miPronostico"
-            [ngClass]="acerto(partido) ? 'acierto-si' : 'acierto-no'"
+            [ngClass]="
+              aciertoExacto(partido)
+                ? 'acierto-si'
+                : aciertoGanador(partido)
+                  ? 'acierto-parcial'
+                  : 'acierto-no'
+            "
           >
-            <ng-container *ngIf="acerto(partido); else fallo">
+            <!-- ✅ Caso 1: marcador exacto -->
+            <div *ngIf="aciertoExacto(partido)" class="acierto-texto acierto-si">
               ✅ ¡Marcador exacto! Pronosticaste {{ partido.miPronostico.golesLocal }} - {{ partido.miPronostico.golesVisita }}
-            </ng-container>
-            <ng-template #fallo>
+            </div>
+
+            <!-- 🟡 Caso 2: acertó al ganador / al resultado, pero no al marcador exacto -->
+            <div
+              *ngIf="!aciertoExacto(partido) && aciertoGanador(partido)"
+              class="acierto-texto acierto-parcial"
+            >
+              🟡 ¡Le atinaste al ganador! Pronosticaste {{ partido.miPronostico.golesLocal }} - {{ partido.miPronostico.golesVisita }}
+            </div>
+
+            <!-- ❌ Caso 3: no coincidió -->
+            <div *ngIf="!aciertoExacto(partido) && !aciertoGanador(partido)" class="acierto-texto acierto-no">
               ❌ No coincidió. Pronosticaste {{ partido.miPronostico.golesLocal }} - {{ partido.miPronostico.golesVisita }}
-            </ng-template>
+            </div>
           </div>
         </div>
 
@@ -157,36 +179,6 @@
     <div *ngIf="enviada" class="estado-enviada">
       ✅ Quiniela Enviada / Confirmada
     </div>
-
-    <!-- 🏆 TABLA DE POSICIONES -->
-    <section class="tabla-posiciones" *ngIf="!cargando && posiciones.length > 0">
-      <h3>🏆 Tabla de Posiciones</h3>
-
-      <table class="tabla-posiciones-tabla">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Participante</th>
-            <th>Aciertos Exactos</th>
-            <th>Resultados</th>
-            <th>Puntos</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let p of posiciones; let i = index">
-            <td>{{ i === 0 ? '🥇' : i + 1 }}</td>
-            <td>
-              <button type="button" class="btn-part-name" (click)="abrirDetalleParticipante(p)">
-                {{ p.alias || p.userId || 'Anónimo' }}
-              </button>
-            </td>
-            <td>{{ p.aciertosExactos }}</td>
-            <td>{{ p.resultados }}</td>
-            <td><strong>{{ p.puntos }}</strong></td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
 
     <!-- 📭 SIN PARTIDOS -->
     <div *ngIf="totalPartidos === 0" class="estado">
@@ -267,36 +259,6 @@
     </div>
 
     <small class="error" *ngIf="errorMessage">{{ errorMessage }}</small>
-
-  </div>
-</div>
-
-<!-- 🗂️ MODAL: DETALLE DE PRONÓSTICO DEL PARTICIPANTE -->
-<div
-  *ngIf="mostrarDetalleParticipante && participanteSeleccionado"
-  class="modal"
-  (click)="cerrarDetalleParticipante()"
->
-  <div class="modal-content" (click)="$event.stopPropagation()">
-
-    <h3>🔍 Detalle del Pronóstico</h3>
-
-    <p class="modal-texto">
-      Pronósticos de
-      <strong>{{ participanteSeleccionado.alias || participanteSeleccionado.userId || 'Anónimo' }}</strong>
-    </p>
-
-    <div class="resumen-lista">
-      <div class="resumen-item" *ngFor="let pr of pronosticosDelParticipante">
-        <span class="resumen-equipo">
-          {{ pr.local || 'Local' }} [ {{ pr.golesLocal }} ] - [ {{ pr.golesVisita }} ] {{ pr.visitante || 'Visitante' }}
-        </span>
-      </div>
-    </div>
-
-    <div class="acciones">
-      <button (click)="cerrarDetalleParticipante()">Cerrar</button>
-    </div>
 
   </div>
 </div>

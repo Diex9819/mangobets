@@ -1,0 +1,118 @@
+<div class="container">
+
+  <!-- 💰 PREMIO ACUMULADO (BOLSA) -->
+  <div class="premio-block" *ngIf="!cargando">
+    <div class="premio-badge">
+      💰 Bolsa Acumulada: $<strong>{{ premio }}</strong> MXN
+
+      <button
+        *ngIf="isAdmin"
+        type="button"
+        class="btn-premio-editar"
+        (click)="editarPremio()"
+      >
+        ✏️ Editar
+      </button>
+    </div>
+
+    <!-- ✏️ MODO ADMIN: edición manual del premio -->
+    <div class="premio-form" *ngIf="isAdmin && editandoPremio">
+      <input
+        type="number"
+        min="0"
+        step="0.01"
+        [(ngModel)]="premioInput"
+        placeholder="Monto de la bolsa (MXN)"
+      />
+      <button type="button" class="btn-premio-guardar" [disabled]="guardandoPremio" (click)="guardarPremio()">
+        {{ guardandoPremio ? '⏳ Guardando…' : '💾 Guardar' }}
+      </button>
+      <button type="button" class="btn-premio-cancelar" (click)="cancelarEditarPremio()">
+        Cancelar
+      </button>
+    </div>
+
+    <small class="premio-error" *ngIf="premioError">{{ premioError }}</small>
+  </div>
+
+  <!-- 🏆 TABLA DE POSICIONES (HOME) -->
+  <section class="tabla-posiciones" *ngIf="!cargando && !errorMessage && posiciones.length > 0">
+    <h3>🏆 Tabla de Posiciones</h3>
+
+    <table class="tabla-posiciones-tabla">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Participante</th>
+          <th>Aciertos Exactos</th>
+          <th>Resultados</th>
+          <th>Puntos</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let p of posiciones; let i = index">
+          <td>{{ i === 0 ? '🥇' : i + 1 }}</td>
+          <td>
+            <button type="button" class="btn-part-name" (click)="abrirDetalleParticipante(p)">
+              {{ p.alias || p.userId || 'Anónimo' }}
+            </button>
+          </td>
+          <td>{{ p.aciertosExactos }}</td>
+          <td>{{ p.resultados }}</td>
+          <td><strong>{{ p.puntos }}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 🔄 CARGANDO -->
+  <div *ngIf="cargando" class="estado">
+    <span class="spinner"></span> Cargando posiciones…
+  </div>
+
+  <!-- ❌ ERROR -->
+  <div *ngIf="!cargando && errorMessage" class="alerta error">
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <!-- 📭 SIN POSICIONES -->
+  <div *ngIf="!cargando && !errorMessage && posiciones.length === 0" class="estado">
+    Todavía no hay posiciones para mostrar.
+  </div>
+
+</div>
+
+<!-- 🗂️ MODAL: DETALLE DE PRONÓSTICO DEL PARTICIPANTE -->
+<div
+  *ngIf="mostrarDetalle && participanteSeleccionado"
+  class="modal"
+  (click)="cerrarDetalleParticipante()"
+>
+  <div class="modal-content" (click)="$event.stopPropagation()">
+
+    <h3>🔍 Detalle del Pronóstico</h3>
+
+    <p class="modal-texto">
+      Pronósticos de
+      <strong>{{ participanteSeleccionado.alias || participanteSeleccionado.userId || 'Anónimo' }}</strong>
+    </p>
+
+    <!-- 🔒 PRIVACIDAD: antes de iniciar la jornada los picks son privados -->
+    <p class="modal-texto" *ngIf="modalBloqueado">
+      ⚠️ Los pronósticos de los participantes estarán visibles una vez que inicie la jornada.
+    </p>
+
+    <div class="resumen-lista" *ngIf="!modalBloqueado">
+      <div class="resumen-item" *ngFor="let pr of pronosticosDelParticipante">
+        <span class="resumen-equipo">
+          {{ pr.local || 'Local' }} [ {{ pr.golesLocal }} ] - [ {{ pr.golesVisita }} ] {{ pr.visitante || 'Visitante' }}
+        </span>
+      </div>
+    </div>
+
+    <div class="acciones">
+      <button (click)="cerrarDetalleParticipante()">{{ modalBloqueado ? 'Entendido' : 'Cerrar' }}</button>
+    </div>
+
+  </div>
+</div>

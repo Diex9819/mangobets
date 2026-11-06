@@ -1,17 +1,22 @@
 <div class="navbar">
 
-  <!-- LOGO -->
-  <div class="logo" routerLink="/quiniela">
+  <!-- LOGO → HOME (Tabla de Posiciones) -->
+  <div class="logo" routerLink="/">
     <span class="ball">⚽</span>
     <span>MangoBets ⚽</span>
   </div>
 
-  <!-- MENU -->
+  <!-- MENU: PESTAÑAS -->
   <div class="menu">
+
+    <!-- 🏆 TABLA DE POSICIONES -->
+    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      🏆 Posiciones
+    </a>
 
     <!-- ⚽ QUINIELAS: visible siempre (público) -->
     <a routerLink="/quiniela" routerLinkActive="active">
-      Quinielas
+      ⚽ Quinielas
     </a>
 
   </div>
