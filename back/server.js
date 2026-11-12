@@ -24,7 +24,7 @@ app.use(rejectDangerousKeys);
 app.use(cors({
   origin: [
     "http://localhost:4200",
-    "https://borresbar.vercel.app"
+    "https://mangobets.vercel.app"
   ],
   credentials: true
 }));
