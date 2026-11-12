@@ -24,7 +24,7 @@ app.use(rejectDangerousKeys);
 app.use(cors({
   origin: [
     "http://localhost:4200",
-    "https://mangobets.vercel.app"
+    process.env.FRONTEND_URL
   ],
   credentials: true
 }));
