@@ -3,17 +3,15 @@
     <div class="login-logo">⚽</div>
 
     <h2>MangoBets</h2>
-    <p class="subtitle">
-      {{ isRegisterMode ? 'Creá una cuenta para comenzar' : 'Iniciá sesión para seguir' }}
-    </p>
+    <p class="subtitle">Iniciá sesión para seguir</p>
 
-    <form *ngIf="!isRegisterMode" [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
       <div class="form-group">
-        <label for="username">Usuario/Correo</label>
+        <label for="username">Usuario</label>
         <input
           id="username"
           type="text"
-          placeholder="Tu usuario o correo"
+          placeholder="Tu usuario"
           autocomplete="username"
           formControlName="username"
         />
@@ -35,60 +33,9 @@
       </button>
     </form>
 
-    <form *ngIf="isRegisterMode" [formGroup]="registerForm" (ngSubmit)="onSubmit()">
-      <div class="form-group">
-        <label for="name">Nombre</label>
-        <input
-          id="name"
-          type="text"
-          placeholder="Tu nombre"
-          autocomplete="name"
-          formControlName="name"
-        />
-      </div>
-
-      <div class="form-group">
-        <label for="reg-username">Usuario/Correo</label>
-        <input
-          id="reg-username"
-          type="text"
-          placeholder="Usuario o correo"
-          autocomplete="username"
-          formControlName="username"
-        />
-      </div>
-
-      <div class="form-group">
-        <label for="reg-password">Contraseña</label>
-        <input
-          id="reg-password"
-          type="password"
-          placeholder="Mínimo 6 caracteres"
-          autocomplete="new-password"
-          formControlName="password"
-        />
-      </div>
-
-      <div class="form-group">
-        <label for="role">Rol</label>
-        <select id="role" formControlName="role">
-          <option value="ADMIN">ADMIN</option>
-          <option value="EMPLEADO">EMPLEADO</option>
-        </select>
-      </div>
-
-      <button type="submit" [disabled]="loading || registerForm.invalid">
-        {{ loading ? 'Registrando…' : 'Registrarse' }}
-      </button>
-    </form>
-
     <p *ngIf="errorMessage" class="error">
       {{ errorMessage }}
     </p>
-
-    <button type="button" class="toggle-mode" (click)="toggleMode()">
-      {{ isRegisterMode ? '¿Ya tenés cuenta? Iniciá sesión' : '¿No tenés cuenta? Registrate' }}
-    </button>
 
     <p class="login-foot">🍊 Apuestas deportivas · Panel de administración</p>
   </div>

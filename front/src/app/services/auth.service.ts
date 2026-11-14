@@ -1,14 +1,13 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable, tap, BehaviorSubject } from 'rxjs';
 import { environment } from '../../environment/environment';
-import { AuthResponse, LoginData, RegisterData } from '../models/auth.interface';
+import { AuthResponse, LoginData } from '../models/auth.interface';
 
 @Injectable({
   providedIn: 'root',
 })
 export class AuthService {
-
   private apiUrl = environment.apiUrl + '/auth';
 
   // 🧠 Estado reactivo del usuario (BehaviorSubject → emite el último valor al suscribirse)
@@ -27,11 +26,6 @@ export class AuthService {
     );
   }
 
-  // 👑 REGISTER (solo admin)
-  register(userData: RegisterData): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${this.apiUrl}/register`, userData);
-  }
-
   // 🔑 TOKEN
   getToken(): string | null {
     return localStorage.getItem('token');
@@ -47,7 +41,7 @@ export class AuthService {
     return this.userSubject.value;
   }
 
-  // 💾 GUARDAR SESIÓN (login / registro / refresh)
+  // 💾 GUARDAR SESIÓN (login / refresh)
   saveSession(res: any) {
     localStorage.setItem('token', res.token);
     this.updateUser(res.user);

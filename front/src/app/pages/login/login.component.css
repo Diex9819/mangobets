@@ -73,8 +73,7 @@
   margin-bottom: 6px;
 }
 
-.login-card input,
-.login-card select {
+.login-card input {
   width: 100%;
   padding: 13px 14px;
   margin: 0;
@@ -91,8 +90,7 @@
     background-color var(--mb-transition);
 }
 
-.login-card input:focus,
-.login-card select:focus {
+.login-card input:focus {
   background: var(--mb-surface);
   border-color: var(--mb-primary);
   box-shadow: var(--mb-ring);
@@ -142,25 +140,6 @@
   font-size: 13px;
   font-weight: 600;
   text-align: left;
-}
-
-/* ─── 🔁 TOGGLE MODO ─── */
-.toggle-mode {
-  width: 100%;
-  margin-top: 12px;
-  padding: 10px 12px;
-  background: transparent;
-  color: var(--mb-primary);
-  border: 1px solid transparent;
-  border-radius: var(--mb-radius-sm);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.toggle-mode:hover {
-  background: var(--mb-surface-2);
-  border-color: var(--mb-border);
 }
 
 /* ─── 🍊 PIE ─── */
