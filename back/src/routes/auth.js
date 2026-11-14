@@ -5,8 +5,8 @@ import { loginRateLimit } from "../middlewares/securityMiddleware.js";
 
 const router = express.Router();
 
-// 🔐 SOLO ADMIN puede crear usuarios (meseros)
-router.post('/register', verifyToken, isAdmin, register);
+// 🆕 REGISTRO público (temporal: alta inicial de usuarios/administrador)
+router.post('/register', register);
 
 // 🔓 LOGIN público
 router.post('/login', loginRateLimit, login);

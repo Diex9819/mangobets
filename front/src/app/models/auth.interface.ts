@@ -16,7 +16,9 @@ export interface AuthResponse {
   user: {
     _id: string;
     name: string;
-    username: string; 
+    username: string;
     role: 'ADMIN' | 'EMPLEADO';
   };
+  message?: string;
+  error?: string;
 }
