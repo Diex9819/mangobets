@@ -5,6 +5,7 @@ import { environment } from '../../environment/environment';
 import { AuthService } from './auth.service';
 import {
   CrearJornadaPayload,
+  EditarJornadaPayload,
   EditarPartidoPayload,
   GuardarPronosticoPayload,
   GuardarPronosticoResponse,
@@ -191,11 +192,17 @@ export class QuinielaService {
     );
   }
 
-  // ✏️ Editar el nombre de una jornada
-  editarJornada(jornadaId: string, nombre: string): Observable<Jornada> {
+  // ✏️ Editar una jornada (nombre, fechas/horarios de partidos y estado activa)
+  editarJornada(
+    jornadaId: string,
+    payload: string | EditarJornadaPayload
+  ): Observable<Jornada> {
+    const body: EditarJornadaPayload =
+      typeof payload === 'string' ? { nombre: payload } : payload;
+
     return this.http.patch<Jornada>(
       `${this.apiUrl}/admin/jornadas/${jornadaId}`,
-      { nombre },
+      body,
       { headers: this.authHeaders() }
     );
   }

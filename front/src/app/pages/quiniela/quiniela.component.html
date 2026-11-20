@@ -56,6 +56,9 @@
           👥 Gestionar Participantes
           <span *ngIf="solicitudesPendientes > 0" class="badge-pendientes">{{ solicitudesPendientes }}</span>
         </button>
+        <button class="btn-editar-fechas" (click)="abrirEditorFechas()">
+          🗓️ Editar fechas / Reactivar jornada
+        </button>
       </div>
     </div>
 
@@ -72,7 +75,15 @@
 
     <!-- 🔒 BLOQUEO: LA JORNADA YA CERRÓ -->
     <div *ngIf="bloqueada" class="bloqueo">
-      🔒 Los pronósticos para esta jornada ya cerraron
+      <span>🔒 Los pronósticos para esta jornada ya cerraron</span>
+      <button
+        *ngIf="esAdmin"
+        type="button"
+        class="btn-editar-fechas btn-editar-fechas-inline"
+        (click)="abrirEditorFechas()"
+      >
+        🗓️ Editar fechas / Reactivar jornada
+      </button>
     </div>
 
     <div class="partidos-grid">
@@ -345,5 +356,40 @@
       <button (click)="cerrarGestionParticipantes()">Cerrar</button>
     </div>
 
+  </div>
+</div>
+
+<!-- ✏️ MODAL: EDITAR FECHAS / REACTIVAR JORNADA (ADMIN) -->
+<div
+  *ngIf="mostrarEditorFechas && esAdmin"
+  class="modal"
+  (click)="cerrarEditorFechas()"
+>
+  <div class="modal-content modal-fechas" (click)="$event.stopPropagation()">
+    <h3>🗓️ Editar fechas / Reactivar jornada</h3>
+
+    <p class="modal-texto">
+      Ajustá las fechas y horas de los partidos para reabrir la jornada. Al guardar, la jornada quedará activa y volverá a aceptar pronósticos si las fechas están vigentes.
+    </p>
+
+    <div class="fechas-lista">
+      <div class="fecha-item" *ngFor="let p of fechasForm">
+        <div class="fecha-equipos">{{ p.local }} vs {{ p.visitante }}</div>
+        <input type="datetime-local" [(ngModel)]="p.horario" />
+      </div>
+    </div>
+
+    <small class="error" *ngIf="errorFechas">{{ errorFechas }}</small>
+
+    <div class="acciones">
+      <button
+        class="btn-resumen-confirmar"
+        [disabled]="guardandoFechas"
+        (click)="guardarFechasJornada()"
+      >
+        {{ guardandoFechas ? 'Guardando…' : 'Guardar y reactivar jornada' }}
+      </button>
+      <button (click)="cerrarEditorFechas()">Cancelar</button>
+    </div>
   </div>
 </div>

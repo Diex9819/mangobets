@@ -54,6 +54,12 @@ export class QuinielaComponent implements OnInit {
   // 🗂️ Estado del modal de gestión de participantes (admin)
   mostrarGestionParticipantes = false;
 
+  // ✏️ Estado del modal para editar fechas / reactivar jornada (admin)
+  mostrarEditorFechas = false;
+  guardandoFechas = false;
+  errorFechas = '';
+  fechasForm: { id: string; local: string; visitante: string; horario: string }[] = [];
+
   // 📋 Marcadores seleccionados para el resumen / envío
   resumenPartidos: {
     partidoId: string;
@@ -272,6 +278,71 @@ export class QuinielaComponent implements OnInit {
   // ✖️ Cerrar el modal de gestión de participantes (admin)
   cerrarGestionParticipantes() {
     this.mostrarGestionParticipantes = false;
+  }
+
+  // ✏️ Abrir editor de fechas / reactivar jornada (admin)
+  abrirEditorFechas() {
+    if (!this.jornada) return;
+
+    this.fechasForm = (this.jornada.partidos || []).map((p) => ({
+      id: p.id,
+      local: p.local,
+      visitante: p.visitante,
+      horario: this.aDatetimeLocal(p.horario),
+    }));
+    this.errorFechas = '';
+    this.mostrarEditorFechas = true;
+  }
+
+  cerrarEditorFechas() {
+    this.mostrarEditorFechas = false;
+    this.errorFechas = '';
+  }
+
+  guardarFechasJornada() {
+    if (!this.jornada || this.guardandoFechas) return;
+
+    const partidos = this.fechasForm.map((p) => ({
+      id: p.id,
+      horario: p.horario,
+    }));
+
+    if (partidos.some((p) => !p.horario)) {
+      this.errorFechas = 'Completá la fecha y hora de todos los partidos';
+      return;
+    }
+
+    this.guardandoFechas = true;
+    this.errorFechas = '';
+
+    this.quinielaService
+      .editarJornada(this.jornada.id, { activa: true, partidos })
+      .subscribe({
+        next: () => {
+          this.guardandoFechas = false;
+          this.mostrarEditorFechas = false;
+          this.aviso = '✅ Jornada actualizada y reactivada. Ya se pueden recibir pronósticos.';
+          this.cargarJornada();
+        },
+        error: (err) => {
+          this.guardandoFechas = false;
+          this.errorFechas =
+            err.error?.error || err.error?.message || 'Error al actualizar las fechas de la jornada';
+        },
+      });
+  }
+
+  private aDatetimeLocal(iso: string): string {
+    const fecha = new Date(iso);
+
+    if (Number.isNaN(fecha.getTime())) return '';
+
+    const pad = (n: number) => String(n).padStart(2, '0');
+
+    return (
+      `${fecha.getFullYear()}-${pad(fecha.getMonth() + 1)}-${pad(fecha.getDate())}` +
+      `T${pad(fecha.getHours())}:${pad(fecha.getMinutes())}`
+    );
   }
 
   // 🔢 Cantidad de solicitudes de pago pendientes (badge del botón admin)

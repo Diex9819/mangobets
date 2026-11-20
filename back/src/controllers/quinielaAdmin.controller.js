@@ -275,21 +275,14 @@ export const publicarResultado = async (req, res) => {
   }
 };
 
-// 👑 EDITAR JORNADA (corregir el nombre capturado)
+// 👑 EDITAR JORNADA (nombre, fechas/horarios de partidos y estado activa)
 export const editarJornada = async (req, res) => {
   try {
     const { jornadaId } = req.params;
-    const { nombre } = req.body;
+    const { nombre, activa, partidos } = req.body || {};
 
     if (!mongoose.isValidObjectId(jornadaId)) {
       return res.status(400).json({ error: 'ID de jornada inválido' });
-    }
-
-    if (!nombre || !String(nombre).trim()) {
-      return res.status(422).json({
-        error: 'Validation failed',
-        details: [{ field: 'nombre', message: 'nombre es requerido' }]
-      });
     }
 
     const jornada = await Jornada.findById(jornadaId);
@@ -298,7 +291,92 @@ export const editarJornada = async (req, res) => {
       return res.status(404).json({ error: 'Jornada no encontrada', id: jornadaId });
     }
 
-    jornada.nombre = String(nombre).trim();
+    const errors = [];
+
+    if (nombre !== undefined) {
+      if (!String(nombre).trim()) {
+        errors.push({ field: 'nombre', message: 'nombre no puede quedar vacío' });
+      }
+    }
+
+    if (activa !== undefined && typeof activa !== 'boolean') {
+      errors.push({ field: 'activa', message: 'activa debe ser booleano' });
+    }
+
+    let partidosUpdates = null;
+    if (partidos !== undefined) {
+      if (!Array.isArray(partidos)) {
+        errors.push({ field: 'partidos', message: 'partidos debe ser un array' });
+      } else {
+        partidosUpdates = partidos;
+        partidos.forEach((p, i) => {
+          const pid = p?.id || p?._id || p?.partidoId;
+          if (!pid || !mongoose.isValidObjectId(pid)) {
+            errors.push({ field: `partidos.${i}.id`, message: 'id de partido inválido' });
+            return;
+          }
+
+          const partidoDoc = jornada.partidos.id(pid);
+          if (!partidoDoc) {
+            errors.push({ field: `partidos.${i}.id`, message: 'el partido no pertenece a la jornada' });
+            return;
+          }
+
+          if (p.horario !== undefined) {
+            if (!p.horario || !esFechaValida(p.horario)) {
+              errors.push({ field: `partidos.${i}.horario`, message: 'horario no es una fecha válida' });
+            }
+          }
+
+          if (p.local !== undefined && !String(p.local).trim()) {
+            errors.push({ field: `partidos.${i}.local`, message: 'local no puede quedar vacío' });
+          }
+
+          if (p.visitante !== undefined && !String(p.visitante).trim()) {
+            errors.push({ field: `partidos.${i}.visitante`, message: 'visitante no puede quedar vacío' });
+          }
+        });
+      }
+    }
+
+    if (
+      nombre === undefined &&
+      activa === undefined &&
+      partidos === undefined
+    ) {
+      errors.push({ field: 'body', message: 'No hay cambios para aplicar' });
+    }
+
+    if (errors.length > 0) {
+      return res.status(422).json({ error: 'Validation failed', details: errors });
+    }
+
+    if (nombre !== undefined) {
+      jornada.nombre = String(nombre).trim();
+    }
+
+    if (Array.isArray(partidosUpdates)) {
+      partidosUpdates.forEach((p) => {
+        const pid = p?.id || p?._id || p?.partidoId;
+        const partidoDoc = jornada.partidos.id(pid);
+        if (!partidoDoc) return;
+
+        if (p.local !== undefined) partidoDoc.local = String(p.local).trim();
+        if (p.visitante !== undefined) partidoDoc.visitante = String(p.visitante).trim();
+        if (p.horario !== undefined) partidoDoc.horario = new Date(p.horario);
+      });
+    }
+
+    if (activa === true) {
+      await Jornada.updateMany(
+        { _id: { $ne: jornadaId }, activa: true },
+        { $set: { activa: false } }
+      );
+      jornada.activa = true;
+    } else if (activa === false) {
+      jornada.activa = false;
+    }
+
     await jornada.save();
 
     res.json(formatJornadaAdmin(jornada));
@@ -309,6 +387,9 @@ export const editarJornada = async (req, res) => {
         message: e.message
       }));
       return res.status(422).json({ error: 'Validation failed', details });
+    }
+    if (err.code === 11000) {
+      return res.status(409).json({ error: 'Ya hay una jornada activa' });
     }
     console.error('Error en editarJornada (quiniela admin):', err);
     res.status(500).json({ error: 'Error al editar la jornada' });

@@ -139,6 +139,19 @@ export interface EditarPartidoPayload {
   horario?: string;
 }
 
+export interface EditarJornadaPartidoPayload {
+  id: string;
+  local?: string;
+  visitante?: string;
+  horario?: string;
+}
+
+export interface EditarJornadaPayload {
+  nombre?: string;
+  activa?: boolean;
+  partidos?: EditarJornadaPartidoPayload[];
+}
+
 export interface OperacionAdminResponse {
   success: boolean;
   message: string;
