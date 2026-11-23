@@ -127,6 +127,17 @@ export class QuinielaService {
     );
   }
 
+  // 👑 ELIMINAR PARTICIPANTE DE UNA JORNADA (borra sus pronósticos)
+  eliminarParticipante(
+    jornadaId: string,
+    data: { userId: string | null; aliasKey: string | null }
+  ): Observable<{ success: boolean; message: string; eliminados: number }> {
+    return this.http.delete<{ success: boolean; message: string; eliminados: number }>(
+      `${this.apiUrl}/jornadas/${jornadaId}/participantes`,
+      { headers: this.authHeaders(), body: data }
+    );
+  }
+
   // 🔑 HEADERS con el token de autenticación (si hay sesión)
   private authHeaders(): HttpHeaders {
     let headers = new HttpHeaders({ 'Content-Type': 'application/json' });

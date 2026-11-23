@@ -687,6 +687,13 @@ export const aprobarParticipante = async (req, res) => {
       filtro.aliasKey = aliasKey;
     }
 
+    if (!userId && !aliasKey) {
+      return res.status(422).json({
+        error: 'Validation failed',
+        details: [{ field: 'identidad', message: 'Se requiere userId o aliasKey' }]
+      });
+    }
+
     const result = await Pronostico.updateMany(filtro, { $set: { estadoPago: estado } });
 
     res.json({
@@ -697,6 +704,53 @@ export const aprobarParticipante = async (req, res) => {
   } catch (err) {
     console.error('Error en aprobarParticipante (quiniela admin):', err);
     res.status(500).json({ error: 'Error al actualizar el estado del participante' });
+  }
+};
+
+// 👑 ELIMINAR PARTICIPANTE DE UNA JORNADA (borra sus pronósticos)
+export const eliminarParticipante = async (req, res) => {
+  try {
+    const { jornadaId } = req.params;
+    const { userId, aliasKey } = req.body || {};
+
+    if (!mongoose.isValidObjectId(jornadaId)) {
+      return res.status(400).json({ error: 'ID de jornada inválido' });
+    }
+
+    if (!userId && !aliasKey) {
+      return res.status(422).json({
+        error: 'Validation failed',
+        details: [{ field: 'identidad', message: 'Se requiere userId o aliasKey' }]
+      });
+    }
+
+    const jornada = await Jornada.findById(jornadaId);
+
+    if (!jornada) {
+      return res.status(404).json({ error: 'Jornada no encontrada' });
+    }
+
+    const ids = jornada.partidos.map((p) => p._id);
+    const filtro = { partidoId: { $in: ids } };
+
+    if (userId) {
+      filtro.userId = userId;
+    }
+
+    if (aliasKey) {
+      filtro.aliasKey = aliasKey;
+    }
+
+    const result = await Pronostico.deleteMany(filtro);
+
+    res.json({
+      success: true,
+      message: 'Participante eliminado',
+      eliminados: result.deletedCount
+    });
+  } catch (err) {
+    console.error('Error en eliminarParticipante (quiniela admin):', err);
+    res.status(500).json({ error: 'Error al eliminar el participante' });
   }
 };
 

@@ -475,7 +475,7 @@ export class QuinielaComponent implements OnInit {
         estado
       })
       .subscribe({
-        next: (res) => {
+        next: () => {
           // ✅ Feedback visual + recarga de la lista (quita de pendientes / pasa a aprobados)
           this.participantesExito =
             estado === 'APROBADO'
@@ -487,6 +487,34 @@ export class QuinielaComponent implements OnInit {
         error: (err) => {
           this.participantesError =
             err.error?.error || err.error?.message || 'Error al actualizar el estado del participante';
+        }
+      });
+  }
+
+  // 🗑️ Eliminar participante de la jornada (borra sus pronósticos)
+  eliminarParticipante(part: ParticipanteQuiniela) {
+    if (!this.jornada) return;
+
+    const nombre = part.alias || part.userId || 'Anónimo';
+    const confirmado = window.confirm(
+      `¿Eliminar a "${nombre}" de esta jornada? Se borrarán sus pronósticos asociados.`
+    );
+    if (!confirmado) return;
+
+    this.quinielaService
+      .eliminarParticipante(this.jornada.id, {
+        userId: part.userId,
+        aliasKey: part.aliasKey
+      })
+      .subscribe({
+        next: () => {
+          this.participantesExito = `🗑️ Participante "${nombre}" eliminado`;
+          this.participantesError = '';
+          this.cargarParticipantes();
+        },
+        error: (err) => {
+          this.participantesError =
+            err.error?.error || err.error?.message || 'Error al eliminar el participante';
         }
       });
   }

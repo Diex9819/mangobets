@@ -280,18 +280,16 @@
   class="modal"
   (click)="cerrarGestionParticipantes()"
 >
-  <div class="modal-content" (click)="$event.stopPropagation()">
+  <div class="modal-content modal-participantes" (click)="$event.stopPropagation()">
 
-    <h3>👥 Gestión de Participantes</h3>
+    <div class="modal-header-fixed">
+      <h3>👥 Gestión de Participantes</h3>
+      <p class="modal-texto">
+        Solicitudes de aprobación de pago y participantes aprobados de la jornada.
+      </p>
+    </div>
 
-    <p class="modal-texto">
-      Solicitudes de aprobación de pago y participantes aprobados de la jornada.
-    </p>
-
-    <!-- 💳 SOLICITUDES DE APROBACIÓN DE PAGO -->
-    <div class="admin-participantes">
-      <h4>💳 Solicitudes de Aprobación de Pago</h4>
-
+    <div class="modal-body-scroll">
       <div *ngIf="participantesError" class="alerta error">
         <span>{{ participantesError }}</span>
       </div>
@@ -300,59 +298,72 @@
         <span>{{ participantesExito }}</span>
       </div>
 
-      <div class="admin-part-lista" *ngIf="participantes.length > 0">
-        <div
-          class="admin-part-item"
-          *ngFor="let part of participantes.filter((p) => p.estadoPago === 'PENDIENTE')"
-        >
-          <div class="admin-part-info">
-            <strong>{{ part.alias || part.userId || 'Anónimo' }}</strong>
-            <small>{{ part.pronosticos.length }} pronóstico(s)</small>
+      <!-- 💳 SOLICITUDES DE APROBACIÓN DE PAGO -->
+      <div class="admin-participantes">
+        <h4>💳 Solicitudes de Aprobación de Pago</h4>
+
+        <div class="admin-part-lista" *ngIf="participantes.length > 0">
+          <div
+            class="admin-part-item"
+            *ngFor="let part of participantes.filter((p) => p.estadoPago === 'PENDIENTE')"
+          >
+            <div class="admin-part-info">
+              <strong>{{ part.alias || part.userId || 'Anónimo' }}</strong>
+              <small>{{ part.pronosticos.length }} pronóstico(s)</small>
+            </div>
+            <div class="admin-part-acciones">
+              <button class="btn-mini ok" (click)="cambiarEstadoPago(part, 'APROBADO')">
+                ✅ Aprobar
+              </button>
+              <button class="btn-mini peligro" (click)="cambiarEstadoPago(part, 'RECHAZADO')">
+                ❌ Rechazar
+              </button>
+              <button class="btn-mini peligro" (click)="eliminarParticipante(part)">
+                🗑️ Eliminar
+              </button>
+            </div>
           </div>
-          <div class="admin-part-acciones">
-            <button class="btn-mini ok" (click)="cambiarEstadoPago(part, 'APROBADO')">
-              ✅ Aprobar / Pagado
-            </button>
-            <button class="btn-mini peligro" (click)="cambiarEstadoPago(part, 'RECHAZADO')">
-              ❌ Rechazar
-            </button>
-          </div>
+        </div>
+
+        <div class="admin-part-vacio" *ngIf="participantes.filter((p) => p.estadoPago === 'PENDIENTE').length === 0">
+          Sin solicitudes de pago por aprobar.
         </div>
       </div>
 
-      <div class="admin-part-vacio" *ngIf="participantes.length === 0">
-        Sin solicitudes de pago por aprobar.
-      </div>
-    </div>
+      <div class="admin-participantes">
+        <h4>✅ Participantes Aprobados de la Jornada</h4>
 
-    <div class="admin-participantes">
-      <h4>✅ Participantes Aprobados de la Jornada</h4>
-
-      <div
-        class="admin-part-lista"
-        *ngIf="participantes.filter((p) => p.estadoPago === 'APROBADO').length > 0"
-      >
         <div
-          class="admin-part-item"
-          *ngFor="let part of participantes.filter((p) => p.estadoPago === 'APROBADO')"
+          class="admin-part-lista"
+          *ngIf="participantes.filter((p) => p.estadoPago === 'APROBADO').length > 0"
         >
-          <div class="admin-part-info">
-            <strong>{{ part.alias || part.userId || 'Anónimo' }}</strong>
-            <small>{{ part.pronosticos.length }} pronóstico(s)</small>
+          <div
+            class="admin-part-item"
+            *ngFor="let part of participantes.filter((p) => p.estadoPago === 'APROBADO')"
+          >
+            <div class="admin-part-info">
+              <strong>{{ part.alias || part.userId || 'Anónimo' }}</strong>
+              <small>{{ part.pronosticos.length }} pronóstico(s)</small>
+            </div>
+            <div class="admin-part-acciones">
+              <span class="admin-part-estado">✅ Aprobado</span>
+              <button class="btn-mini peligro" (click)="eliminarParticipante(part)">
+                🗑️ Eliminar
+              </button>
+            </div>
           </div>
-          <span class="admin-part-estado">✅ Aprobado / Pagado</span>
+        </div>
+
+        <div
+          class="admin-part-vacio"
+          *ngIf="participantes.filter((p) => p.estadoPago === 'APROBADO').length === 0"
+        >
+          Todavía no hay participantes aprobados.
         </div>
       </div>
-
-      <div
-        class="admin-part-vacio"
-        *ngIf="participantes.filter((p) => p.estadoPago === 'APROBADO').length === 0"
-      >
-        Todavía no hay participantes aprobados.
-      </div>
     </div>
 
-    <div class="acciones">
+    <div class="acciones modal-footer-fixed">
       <button (click)="cerrarGestionParticipantes()">Cerrar</button>
     </div>
 

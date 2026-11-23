@@ -19,6 +19,7 @@ import {
   publicarResultado,
   listarParticipantes,
   aprobarParticipante,
+  eliminarParticipante,
   actualizarPremio
 } from '../controllers/quinielaAdmin.controller.js';
 
@@ -107,6 +108,14 @@ router.patch(
   verifyToken,
   isAdmin,
   aprobarParticipante
+);
+
+// 👑 ELIMINAR PARTICIPANTE DE UNA JORNADA (borra sus pronósticos)
+router.delete(
+  '/jornadas/:jornadaId/participantes',
+  verifyToken,
+  isAdmin,
+  eliminarParticipante
 );
 
 export default router;
