@@ -511,39 +511,37 @@ export class QuinielaComponent implements OnInit {
     );
   }
 
-  // ✅ ¿Coincidió el marcador exacto?
-  aciertoExacto(partido: PartidoQuiniela): boolean {
+  // 🎯 Puntos obtenidos por el pronóstico (usa cálculo del backend si viene)
+  puntosObtenidos(partido: PartidoQuiniela): number | null {
+    if (partido.puntos !== undefined && partido.puntos !== null) {
+      return partido.puntos;
+    }
+
     const oficial = partido.resultadoOficial;
     const pronostico = partido.miPronostico;
+    if (!oficial || !pronostico) return null;
 
-    if (!oficial || !pronostico) return false;
-
-    return (
-      pronostico.golesLocal === oficial.golesLocal &&
-      pronostico.golesVisita === oficial.golesVisita
-    );
-  }
-
-  // 🟡 ¿Aconderon el ganador / el resultado (sin acertar el marcador exacto)?
-  aciertoGanador(partido: PartidoQuiniela): boolean {
-    const oficial = partido.resultadoOficial;
-    const pronostico = partido.miPronostico;
-
-    if (!oficial || !pronostico) return false;
-
-    // Si ya fue acierto exacto, el caso 1 (verde) ya aplica
     if (
       pronostico.golesLocal === oficial.golesLocal &&
       pronostico.golesVisita === oficial.golesVisita
     ) {
-      return false;
+      return 2;
     }
 
-    const predioGano = pronostico.golesLocal > pronostico.golesVisita;
-    const ofiGano = oficial.golesLocal > oficial.golesVisita;
-    const predioEmpate = pronostico.golesLocal === pronostico.golesVisita;
-    const ofiEmpate = oficial.golesLocal === oficial.golesVisita;
+    const signo = (a: number, b: number) => (a > b ? 1 : a < b ? -1 : 0);
+    return signo(pronostico.golesLocal, pronostico.golesVisita) ===
+      signo(oficial.golesLocal, oficial.golesVisita)
+      ? 1
+      : 0;
+  }
 
-    return (predioGano && ofiGano) || (predioEmpate && ofiEmpate);
+  // ✅ ¿Coincidió el marcador exacto?
+  aciertoExacto(partido: PartidoQuiniela): boolean {
+    return this.puntosObtenidos(partido) === 2;
+  }
+
+  // 🟡 ¿Acertó al resultado/ganador (sin acertar el marcador exacto)?
+  aciertoGanador(partido: PartidoQuiniela): boolean {
+    return this.puntosObtenidos(partido) === 1;
   }
 }

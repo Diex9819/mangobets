@@ -20,13 +20,9 @@ function calcularPuntos(pronostico, resultadoOficial) {
     return 2;
   }
 
-  // ⚠️ Acierto al ganador o al empate (el marcador fue distinto, pero el resultado sí)
-  const predioGano = golesLocal > golesVisita;
-  const ofiGano = ofL > ofV;
-  const predioEmpate = golesLocal === golesVisita;
-  const ofiEmpate = ofL === ofV;
-
-  const acerto = (predioGano && ofiGano) || (predioEmpate && ofiEmpate);
+  // ⚠️ Acierto al resultado (ganador local, empate o ganador visitante)
+  const signo = (a, b) => (a > b ? 1 : a < b ? -1 : 0);
+  const acerto = signo(golesLocal, golesVisita) === signo(ofL, ofV);
 
   return acerto ? 1 : 0;
 }
@@ -508,12 +504,8 @@ export const listarPosiciones = async (req, res) => {
           puntos += 2;
           aciertosExactos += 1;
         } else {
-          const predioGano = pr.golesLocal > pr.golesVisita;
-          const ofiGano = oficial.golesLocal > oficial.golesVisita;
-          const predioEmpate = pr.golesLocal === pr.golesVisita;
-          const ofiEmpate = oficial.golesLocal === oficial.golesVisita;
-
-          const acerto = (predioGano && ofiGano) || (predioEmpate && ofiEmpate);
+          const signo = (a, b) => (a > b ? 1 : a < b ? -1 : 0);
+          const acerto = signo(pr.golesLocal, pr.golesVisita) === signo(oficial.golesLocal, oficial.golesVisita);
 
           if (acerto) {
             puntos += 1;
@@ -567,7 +559,7 @@ function formatJornada(doc, miPronosticoDe) {
         resultadoOficial: p.resultadoOficial,
         miPronostico,
         puntos:
-          miPronostico && miPronostico.estadoPago === 'APROBADO' && p.resultadoOficial
+          miPronostico && p.resultadoOficial
             ? calcularPuntos(miPronostico, p.resultadoOficial)
             : null
       };

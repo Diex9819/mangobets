@@ -145,7 +145,7 @@
           >
             <!-- ✅ Caso 1: marcador exacto -->
             <div *ngIf="aciertoExacto(partido)" class="acierto-texto acierto-si">
-              ✅ ¡Marcador exacto! Pronosticaste {{ partido.miPronostico.golesLocal }} - {{ partido.miPronostico.golesVisita }}
+              ✅ ¡Marcador exacto! Pronosticaste {{ partido.miPronostico.golesLocal }} - {{ partido.miPronostico.golesVisita }} · Sumaste 2 pts
             </div>
 
             <!-- 🟡 Caso 2: acertó al ganador / al resultado, pero no al marcador exacto -->
@@ -153,12 +153,12 @@
               *ngIf="!aciertoExacto(partido) && aciertoGanador(partido)"
               class="acierto-texto acierto-parcial"
             >
-              🟡 ¡Le atinaste al ganador! Pronosticaste {{ partido.miPronostico.golesLocal }} - {{ partido.miPronostico.golesVisita }}
+              🟡 ¡Acertaste el resultado! Pronosticaste {{ partido.miPronostico.golesLocal }} - {{ partido.miPronostico.golesVisita }} · Sumaste 1 pt
             </div>
 
             <!-- ❌ Caso 3: no coincidió -->
             <div *ngIf="!aciertoExacto(partido) && !aciertoGanador(partido)" class="acierto-texto acierto-no">
-              ❌ No coincidió. Pronosticaste {{ partido.miPronostico.golesLocal }} - {{ partido.miPronostico.golesVisita }}
+              ❌ No coincidió. Pronosticaste {{ partido.miPronostico.golesLocal }} - {{ partido.miPronostico.golesVisita }} · Sumaste 0 pts
             </div>
           </div>
         </div>
