@@ -591,6 +591,11 @@ export const eliminarPartido = async (req, res) => {
   }
 };
 
+// 📊 Prioridad de estado para agrupar participantes en la vista de admin
+// (RECHAZADO > PENDIENTE > APROBADO): así los rechazados siempre aparecen
+// como tal, sin depender del orden en que lleguen los pronósticos.
+const ORDEN_ESTADO = { RECHAZADO: 2, PENDIENTE: 1, APROBADO: 0 };
+
 // 👑 LISTAR PARTICIPANTES DE UNA JORNADA (con estado de pago)
 export const listarParticipantes = async (req, res) => {
   try {
@@ -638,7 +643,13 @@ export const listarParticipantes = async (req, res) => {
         enviado: p.enviado === true,
         estadoPago: p.estadoPago || 'PENDIENTE'
       });
-      participante.estadoPago = p.estadoPago || 'PENDIENTE';
+
+      // 📊 Estado del participante = el "peor" entre sus pronósticos
+      const est = p.estadoPago || 'PENDIENTE';
+
+      if ((ORDEN_ESTADO[est] ?? 0) > (ORDEN_ESTADO[participante.estadoPago] ?? 0)) {
+        participante.estadoPago = est;
+      }
     }
 
     const participantes = Array.from(participantesMap.values());

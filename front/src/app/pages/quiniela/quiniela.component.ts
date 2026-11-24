@@ -367,6 +367,11 @@ export class QuinielaComponent implements OnInit {
     return this.participantes.filter((p) => p.estadoPago === 'PENDIENTE').length;
   }
 
+  // 🚫 Participantes rechazados (se muestran y se pueden eliminar desde el modal)
+  get participantesRechazados(): ParticipanteQuiniela[] {
+    return this.participantes.filter((p) => p.estadoPago === 'RECHAZADO');
+  }
+
   // 🚀 Confirmar y enviar definitivamente → POST batch oficial
   confirmarYMandar() {
     const pronosticos = this.resumenPartidos.map((p) => ({
@@ -559,7 +564,7 @@ export class QuinielaComponent implements OnInit {
       })
       .subscribe({
         next: () => {
-          this.participantesExito = `🗑️ Participante "${nombre}" eliminado`;
+          this.participantesExito = `🗑️ Participante "${nombre}" eliminado. Podrás volver a participar con el mismo nombre.`;
           this.participantesError = '';
           this.cargarParticipantes();
         },

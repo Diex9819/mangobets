@@ -361,6 +361,30 @@
           Todavía no hay participantes aprobados.
         </div>
       </div>
+
+      <!-- 🚫 PARTICIPANTES RECHAZADOS (se pueden eliminar) -->
+      <div class="admin-participantes">
+        <h4>🚫 Participantes Rechazados</h4>
+
+        <div class="admin-part-lista" *ngIf="participantesRechazados.length > 0">
+          <div class="admin-part-item" *ngFor="let part of participantesRechazados">
+            <div class="admin-part-info">
+              <strong>{{ part.alias || part.userId || 'Anónimo' }}</strong>
+              <small>{{ part.pronosticos.length }} pronóstico(s)</small>
+            </div>
+            <div class="admin-part-acciones">
+              <span class="admin-part-estado">🚫 Rechazado</span>
+              <button class="btn-mini peligro" (click)="eliminarParticipante(part)">
+                🗑️ Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-part-vacio" *ngIf="participantesRechazados.length === 0">
+          Sin participantes rechazados.
+        </div>
+      </div>
     </div>
 
     <div class="acciones modal-footer-fixed">
