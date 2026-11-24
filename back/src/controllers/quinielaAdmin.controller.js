@@ -688,10 +688,10 @@ export const aprobarParticipante = async (req, res) => {
     }
 
     if (!userId && !aliasKey) {
-      return res.status(422).json({
-        error: 'Validation failed',
-        details: [{ field: 'identidad', message: 'Se requiere userId o aliasKey' }]
-      });
+      // 🪪 Registro "Anónimo": pronósticos sin userId ni aliasKey de la jornada.
+      //    Se actúa sobre ellos porque son la identidad del grupo mostrado como "Anónimo".
+      filtro.userId = null;
+      filtro.aliasKey = null;
     }
 
     const result = await Pronostico.updateMany(filtro, { $set: { estadoPago: estado } });
@@ -717,13 +717,6 @@ export const eliminarParticipante = async (req, res) => {
       return res.status(400).json({ error: 'ID de jornada inválido' });
     }
 
-    if (!userId && !aliasKey) {
-      return res.status(422).json({
-        error: 'Validation failed',
-        details: [{ field: 'identidad', message: 'Se requiere userId o aliasKey' }]
-      });
-    }
-
     const jornada = await Jornada.findById(jornadaId);
 
     if (!jornada) {
@@ -739,6 +732,12 @@ export const eliminarParticipante = async (req, res) => {
 
     if (aliasKey) {
       filtro.aliasKey = aliasKey;
+    }
+
+    if (!userId && !aliasKey) {
+      // 🪪 Registro "Anónimo": se eliminan los pronósticos sin identidad de la jornada
+      filtro.userId = null;
+      filtro.aliasKey = null;
     }
 
     const result = await Pronostico.deleteMany(filtro);

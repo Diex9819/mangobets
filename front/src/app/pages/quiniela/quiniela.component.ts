@@ -537,8 +537,7 @@ export class QuinielaComponent implements OnInit {
           this.cargarParticipantes();
         },
         error: (err) => {
-          this.participantesError =
-            err.error?.error || err.error?.message || 'Error al actualizar el estado del participante';
+          this.participantesError = this.mensajeDeError(err);
         }
       });
   }
@@ -565,8 +564,7 @@ export class QuinielaComponent implements OnInit {
           this.cargarParticipantes();
         },
         error: (err) => {
-          this.participantesError =
-            err.error?.error || err.error?.message || 'Error al eliminar el participante';
+          this.participantesError = this.mensajeDeError(err);
         }
       });
   }

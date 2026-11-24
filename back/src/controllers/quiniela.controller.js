@@ -306,6 +306,24 @@ export const guardarPronosticosBatch = async (req, res) => {
     // 🧪 Validación de entrada
     const errors = [];
 
+    // 🪪 Sin sesión, el alias es OBLIGATORIO para que el pronóstico tenga
+    //    identidad válida (mismo criterio que guardarPronostico individual).
+    if (!req.user) {
+      const aliasLimpio = typeof alias === 'string' ? alias.trim() : '';
+
+      if (!aliasLimpio) {
+        errors.push({
+          field: 'alias',
+          message: 'alias es requerido para pronosticar sin iniciar sesión'
+        });
+      } else if (aliasLimpio.length > MAX_ALIAS) {
+        errors.push({
+          field: 'alias',
+          message: `alias debe tener ${MAX_ALIAS} caracteres o menos`
+        });
+      }
+    }
+
     for (const p of pronosticos) {
       if (!p?.partidoId) {
         errors.push({ field: 'partidoId', message: 'partidoId es requerido' });
