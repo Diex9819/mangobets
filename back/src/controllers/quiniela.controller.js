@@ -408,6 +408,14 @@ export const guardarPronosticosBatch = async (req, res) => {
       pronosticos: guardados
     });
   } catch (err) {
+    // 🧪 Validación de Mongoose (ej. runValidators en el upsert): detalles por campo
+    if (err.name === 'ValidationError') {
+      const details = Object.values(err.errors).map((e) => ({
+        field: e.path,
+        message: e.message
+      }));
+      return res.status(422).json({ error: 'Validation failed', details });
+    }
     console.error('Error en guardarPronosticosBatch (quiniela):', err);
     res.status(500).json({ error: 'Error al guardar la quiniela' });
   }

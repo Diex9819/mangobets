@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { QuinielaAdminComponent } from './quiniela-admin.component';
 import { QuinielaService } from '../../services/quiniela.service';
@@ -181,15 +182,24 @@ export class QuinielaComponent implements OnInit {
     return Date.now() > inicio;
   }
 
-  // 🎯 Marcador efectivo de un partido: borrador local si existe, si no el pronóstico guardado
+  // 🎯 Marcador efectivo de un partido: borrador local si existe, si no el pronóstico guardado.
+  // Lados que faltan quedan en 0: el pronóstico siempre se envía con un marcador completo y válido.
   marcadorActual(partido: PartidoQuiniela): MarcadorGoles {
     const draft = this.drafts[partido.id];
 
-    if (draft) {
-      return draft;
-    }
+    return {
+      golesLocal: this.golesSeguro(draft?.golesLocal ?? partido.miPronostico?.golesLocal),
+      golesVisita: this.golesSeguro(draft?.golesVisita ?? partido.miPronostico?.golesVisita)
+    };
+  }
 
-    return partido.miPronostico || { golesLocal: 0, golesVisita: 0 };
+  // 🔢 Marcador seguro: entero >= 0. Valores raros, negativos o faltantes → 0.
+  private golesSeguro(valor: number | null | undefined): number {
+    const numero = Number(valor);
+
+    if (!Number.isFinite(numero)) return 0;
+
+    return Math.max(0, Math.floor(numero));
   }
 
   // ✏️ Actualizar el marcador local SIN guardar en el servidor.
@@ -200,13 +210,15 @@ export class QuinielaComponent implements OnInit {
     if (this.enviada) return; // ya se envió → bloqueado
     if (partido.resultadoOficial) return;
 
-    const draft: MarcadorGoles = { ...(this.drafts[partido.id] || {}) };
+    // 🔒 El borrador se completa: siempre almacenamos un marcador entero >= 0,
+    //    aunque el usuario haya editado un solo lado o borrado un campo.
+    const marcador = this.marcadorActual(partido);
+    const draft: MarcadorGoles = {
+      golesLocal: marcador.golesLocal,
+      golesVisita: marcador.golesVisita
+    };
 
-    if (lado === 'L') {
-      draft.golesLocal = valor;
-    } else {
-      draft.golesVisita = valor;
-    }
+    draft[lado === 'L' ? 'golesLocal' : 'golesVisita'] = this.golesSeguro(valor);
 
     this.drafts[partido.id] = draft;
   }
@@ -359,8 +371,8 @@ export class QuinielaComponent implements OnInit {
   confirmarYMandar() {
     const pronosticos = this.resumenPartidos.map((p) => ({
       partidoId: p.partidoId,
-      golesLocal: p.golesLocal,
-      golesVisita: p.golesVisita
+      golesLocal: this.golesSeguro(p.golesLocal),
+      golesVisita: this.golesSeguro(p.golesVisita)
     }));
 
     const alias = this.haySesion ? undefined : (this.alias || undefined);
@@ -395,10 +407,45 @@ export class QuinielaComponent implements OnInit {
         error: (err) => {
           this.guardando = false;
 
-          this.errorMessage =
-            err.error?.error || err.error?.message || 'Error al guardar la quiniela';
+          this.errorMessage = this.mensajeDeError(err);
         }
       });
+  }
+
+  // 📣 Traduce la respuesta del backend en un mensaje claro y descriptivo (español).
+  // Si el backend devuelve un 422 con "Validation failed" + details, se muestran
+  // los mensajes de cada campo; en otro caso se usa el mensaje del servidor o un
+  // texto local. Nunca se muestra el "Validation failed" genérico.
+  private mensajeDeError(err: HttpErrorResponse): string {
+    const body = err?.error;
+
+    if (body && typeof body === 'object') {
+      // 🧾 Validación del backend: detalles descriptivos por campo
+      if (Array.isArray(body.details) && body.details.length > 0) {
+        const detalles = body.details
+          .map((d: { field?: string; message?: string }) =>
+            d?.message ? d.message : d?.field ? `${d.field}: dato inválido` : ''
+          )
+          .filter(Boolean)
+          .join('; ');
+
+        return detalles
+          ? `Error de validación: ${detalles}`
+          : 'Error de validación: datos inválidos';
+      }
+
+      const texto = typeof body.error === 'string' ? body.error : '';
+
+      if (texto && texto !== 'Validation failed') return texto;
+      if (typeof body.message === 'string' && body.message) return body.message;
+      if (texto === 'Validation failed') {
+        return 'Error de validación: campos requeridos o inválidos';
+      }
+    }
+
+    if (typeof body === 'string' && body && body !== 'Validation failed') return body;
+
+    return 'Error al guardar la quiniela';
   }
 
   // 🪪 Confirmar el alias → guarda el lote de pronósticos que quedó pendiente
