@@ -281,7 +281,7 @@ export class QuinielaAdminComponent implements OnInit, OnChanges {
       .editarPartido(this.editandoPartido.jornadaId, this.editandoPartido.partido.id, {
         local: this.partidoForm.local.trim(),
         visitante: this.partidoForm.visitante.trim(),
-        horario: this.partidoForm.horario
+        horario: this.datetimeLocalAIso(this.partidoForm.horario)
       })
       .subscribe({
         next: () => {
@@ -328,7 +328,7 @@ export class QuinielaAdminComponent implements OnInit, OnChanges {
       .agregarPartido(jornadaId, {
         local: local.trim(),
         visitante: visitante.trim(),
-        horario
+        horario: this.datetimeLocalAIso(horario)
       })
       .subscribe({
         next: () => {
@@ -413,7 +413,7 @@ export class QuinielaAdminComponent implements OnInit, OnChanges {
       .map((p) => ({
         local: p.local.trim(),
         visitante: p.visitante.trim(),
-        horario: p.horario
+        horario: this.datetimeLocalAIso(p.horario)
       }));
 
     if (partidos.length === 0) {
@@ -460,6 +460,12 @@ export class QuinielaAdminComponent implements OnInit, OnChanges {
       `${fecha.getFullYear()}-${pad(fecha.getMonth() + 1)}-${pad(fecha.getDate())}` +
       `T${pad(fecha.getHours())}:${pad(fecha.getMinutes())}`
     );
+  }
+
+  // 📅 datetime-local (hora local del navegador) → ISO UTC para persistir sin desfase
+  private datetimeLocalAIso(valor: string): string {
+    const fecha = new Date(valor);
+    return Number.isNaN(fecha.getTime()) ? valor : fecha.toISOString();
   }
 
   private partidoVacio() {

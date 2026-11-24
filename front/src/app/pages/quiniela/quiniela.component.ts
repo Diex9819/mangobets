@@ -304,7 +304,7 @@ export class QuinielaComponent implements OnInit {
 
     const partidos = this.fechasForm.map((p) => ({
       id: p.id,
-      horario: p.horario,
+      horario: this.datetimeLocalAIso(p.horario),
     }));
 
     if (partidos.some((p) => !p.horario)) {
@@ -343,6 +343,11 @@ export class QuinielaComponent implements OnInit {
       `${fecha.getFullYear()}-${pad(fecha.getMonth() + 1)}-${pad(fecha.getDate())}` +
       `T${pad(fecha.getHours())}:${pad(fecha.getMinutes())}`
     );
+  }
+
+  private datetimeLocalAIso(valor: string): string {
+    const fecha = new Date(valor);
+    return Number.isNaN(fecha.getTime()) ? valor : fecha.toISOString();
   }
 
   // 🔢 Cantidad de solicitudes de pago pendientes (badge del botón admin)
