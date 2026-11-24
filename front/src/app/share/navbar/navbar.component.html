@@ -29,9 +29,10 @@
     <button (click)="logout()">Salir</button>
   </div>
 
-  <!-- 🔐 LOGIN (solo si no hay sesión iniciada) -->
-  <div class="login-action" *ngIf="!haySesion">
-    <a routerLink="/login" class="btn-login">Iniciar Sesión</a>
+  <!-- 🥭 ACCESO DISCRETO A INICIAR SESIÓN (solo si no hay sesión) -->
+  <!-- Ícono pequeño sin texto que lleva a /login: se muestra como decoración -->
+  <div class="login-subtle" *ngIf="!haySesion">
+    <a class="login-subtle-btn" routerLink="/login" aria-label="Iniciar sesión">🥭</a>
   </div>
 
 </div>

@@ -157,33 +157,36 @@
   border-radius: var(--mb-radius-pill);
 }
 
-/* ─── 🔐 LOGIN (solo invitados) ─── */
-.login-action {
+/* ─── 🥭 ACCESO DISCRETO A INICIAR SESIÓN (solo sin sesión) ───
+   Ícono pequeño sin texto (se muestra como decoración). Al tocarlo lleva a
+   /login. Espacio reservado: el encabezado no se desarma. */
+.login-subtle {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
-.btn-login {
+.login-subtle-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+
+  width: 30px;
+  height: 30px;
+  padding: 0;
+
+  font-size: 16px;
+  color: var(--mb-muted);
+
   text-decoration: none;
+  border-radius: 50%;
 
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--mb-primary-hover);
-
-  padding: 8px 16px;
-  border-radius: var(--mb-radius-pill);
-
-  border: 1px solid var(--mb-border-strong);
-  background: transparent;
-
-  transition: background-color var(--mb-transition), color var(--mb-transition), border-color var(--mb-transition);
+  transition: color var(--mb-transition), background-color var(--mb-transition);
 }
 
-.btn-login:hover {
-  background: var(--mb-primary-soft);
-  border-color: var(--mb-primary);
+.login-subtle-btn:hover {
+  color: var(--mb-primary-hover);
+  background: var(--mb-surface-2);
 }
 
 /* ═══════════════════════════════════════
@@ -212,7 +215,7 @@
     margin-left: auto;
   }
 
-  .login-action {
+  .login-subtle {
     order: 2;
     margin-left: auto;
   }
