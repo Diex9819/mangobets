@@ -16,6 +16,7 @@ import {
   OperacionAdminResponse,
   ListarParticipantesResponse,
   ListarPosicionesResponse,
+  ListarJornadasActivasResponse,
   ActualizarPremioResponse,
 } from '../models/quiniela.model';
 
@@ -41,10 +42,24 @@ export class QuinielaService {
   ) {}
 
   // 📅 JORNADA ACTIVA (con el pronóstico de quien consulta)
-  getJornadaActiva(alias?: string): Observable<Jornada> {
-    const query = alias ? `?alias=${encodeURIComponent(alias)}` : '';
+  // Params opcionales: alias (flujo anónimo) y jornadaId (selección de quiniela).
+  // Sin jornadaId → devuelve la activa más reciente.
+  getJornadaActiva(params?: { alias?: string; jornadaId?: string }): Observable<Jornada> {
+    const partes: string[] = [];
+
+    if (params?.alias) partes.push(`alias=${encodeURIComponent(params.alias)}`);
+    if (params?.jornadaId) partes.push(`jornadaId=${encodeURIComponent(params.jornadaId)}`);
+
+    const query = partes.length ? `?${partes.join('&')}` : '';
 
     return this.http.get<Jornada>(`${this.apiUrl}/activa${query}`, {
+      headers: this.authHeaders()
+    });
+  }
+
+  // 🏆 JORNADAS ACTIVAS (selector de quinielas; backend ya las ordena por createdAt desc)
+  getJornadasActivas(): Observable<ListarJornadasActivasResponse> {
+    return this.http.get<ListarJornadasActivasResponse>(`${this.apiUrl}/jornadas/activas`, {
       headers: this.authHeaders()
     });
   }

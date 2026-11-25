@@ -71,7 +71,25 @@ function resolverIdentidad(req, aliasBody) {
 // (su propio pronóstico si hay sesión, o el del alias indicado).
 export const obtenerJornadaActiva = async (req, res) => {
   try {
-    const jornada = await Jornada.findOne({ activa: true });
+    const { jornadaId } = req.query;
+
+    let jornada;
+
+    if (jornadaId) {
+      if (!mongoose.isValidObjectId(jornadaId)) {
+        return res.status(400).json({ error: 'ID de jornada inválido' });
+      }
+      jornada = await Jornada.findById(jornadaId);
+      if (!jornada || !jornada.activa) {
+        return res.status(404).json({
+          error: 'Jornada no encontrada o no está activa',
+          jornadaId: jornadaId
+        });
+      }
+    } else {
+      // 🔝 Default: la jornada activa más reciente (compatibilidad)
+      jornada = await Jornada.findOne({ activa: true }).sort({ createdAt: -1 });
+    }
 
     if (!jornada) {
       return res.status(404).json({
@@ -124,12 +142,37 @@ export const obtenerJornadaActiva = async (req, res) => {
   }
 };
 
+// 🏆 GET /api/quinebelas/jornadas/activas
+// Lista de jornadas ACTIVAS (ordenadas por fecha de creación, más reciente
+// primero) para el selector de quinielas. Público.
+export const listarJornadasActivas = async (req, res) => {
+  try {
+    const jornadas = await Jornada.find({ activa: true }).sort({ createdAt: -1 }).lean();
+
+    res.json({
+      success: true,
+      jornadas: jornadas.map((j) => ({
+        id: j._id.toString(),
+        nombre: j.nombre,
+        activa: j.activa,
+        premio: j.premio ?? 0,
+        partidos: j.partidos.length,
+        createdAt: j.createdAt,
+        updatedAt: j.updatedAt
+      }))
+    });
+  } catch (err) {
+    console.error('Error en listarJornadasActivas (quiniela):', err);
+    res.status(500).json({ error: 'Error al listar las jornadas activas' });
+  }
+};
+
 // 🎯 POST /api/quinielas/pronosticos
 // Guarda el pronóstico para un partido. Si ya existe, lo ACTUALIZA.
 // Público: si no hay sesión, se exige el alias para identificar al prognosticador.
 export const guardarPronostico = async (req, res) => {
   try {
-    const { partidoId, golesLocal, golesVisita, alias } = req.body;
+    const { partidoId, golesLocal, golesVisita, alias, jornadaId } = req.body;
 
     // 🧪 Validación de entrada
     const errors = [];
@@ -173,13 +216,25 @@ export const guardarPronostico = async (req, res) => {
       });
     }
 
-    // 📅 Solo se pronostica sobre la jornada activa
-    const jornada = await Jornada.findOne({ activa: true });
+    // 📅 Jornada activa a usar: jornadaId pasada (validada) o la más reciente activa
+    let jornada;
 
-    if (!jornada) {
-      return res.status(404).json({
-        error: 'No hay ninguna jornada activa'
-      });
+    if (jornadaId) {
+      if (!mongoose.isValidObjectId(jornadaId)) {
+        return res.status(400).json({ error: 'ID de jornada inválido' });
+      }
+      jornada = await Jornada.findById(jornadaId);
+      if (!jornada || !jornada.activa) {
+        return res.status(404).json({
+          error: 'Jornada no encontrada o no está activa',
+          jornadaId: jornadaId
+        });
+      }
+    } else {
+      jornada = await Jornada.findOne({ activa: true }).sort({ createdAt: -1 });
+      if (!jornada) {
+        return res.status(404).json({ error: 'No hay ninguna jornada activa' });
+      }
     }
 
     // 🔒 Bloqueo por horario: si el primer partido ya se jugó, no se puede pronosticar
@@ -293,6 +348,7 @@ async function verificarCierreJornada(jornada) {
 export const guardarPronosticosBatch = async (req, res) => {
   try {
     const { pronosticos, alias } = req.body;
+    const jornadaId = req.body?.jornadaId ?? req.query?.jornadaId;
 
     if (!Array.isArray(pronosticos) || pronosticos.length === 0) {
       return res.status(422).json({
@@ -347,13 +403,27 @@ export const guardarPronosticosBatch = async (req, res) => {
       });
     }
 
-    // 📅 Solo se pronostica sobre la jornada activa
-    const jornada = await Jornada.findOne({ activa: true });
+    // 📅 Jornada activa a usar: jornadaId pasada (validada) o la más reciente activa
+    let jornada;
 
-    if (!jornada) {
-      return res.status(404).json({
-        error: 'No hay ninguna jornada activa'
-      });
+    if (jornadaId) {
+      if (!mongoose.isValidObjectId(jornadaId)) {
+        return res.status(400).json({ error: 'ID de jornada inválido' });
+      }
+      jornada = await Jornada.findById(jornadaId);
+      if (!jornada || !jornada.activa) {
+        return res.status(404).json({
+          error: 'Jornada no encontrada o no está activa',
+          jornadaId: jornadaId
+        });
+      }
+    } else {
+      jornada = await Jornada.findOne({ activa: true }).sort({ createdAt: -1 });
+      if (!jornada) {
+        return res.status(404).json({
+          error: 'No hay ninguna jornada activa'
+        });
+      }
     }
 
     // 🔒 Bloqueo por horario: si el primer partido ya se jugó, no se puede pronosticar
@@ -363,6 +433,27 @@ export const guardarPronosticosBatch = async (req, res) => {
       return res.status(423).json({
         error: 'Los pronósticos para esta jornada ya cerraron'
       });
+    }
+
+    // 🧹 Prevalidación de TODO el lote ANTES de guardar (evita escrituras parciales):
+    //    cada partido debe pertenecer a la jornada activa y estar sin resultado oficial.
+    for (const p of pronosticos) {
+      const partido = jornada.partidos.id(p.partidoId);
+
+      if (!partido) {
+        return res.status(404).json({
+          error: 'El partido no pertenece a la jornada activa',
+          jornadaId: jornada.id.toString(),
+          partidoId: p.partidoId
+        });
+      }
+
+      if (partido.resultadoOficial) {
+        return res.status(400).json({
+          error: 'El partido ya tiene resultado oficial, no se puede pronosticar',
+          partidoId: p.partidoId
+        });
+      }
     }
 
     // 🪪 Identidad del prognosticador

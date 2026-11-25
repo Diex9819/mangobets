@@ -123,11 +123,10 @@
 
           <button
             class="btn-activar"
-            *ngIf="!j.activa"
             [disabled]="activandoId === j.id"
             (click)="activar(j.id)"
           >
-            {{ activandoId === j.id ? 'Activando…' : 'Activar' }}
+            {{ activandoId === j.id ? 'Activando…' : (j.activa ? '✔️ Ya activa' : 'Activar') }}
           </button>
 
           <button
@@ -240,7 +239,7 @@
 
       <label class="check">
         <input type="checkbox" [(ngModel)]="nuevaJornada.activa" />
-        Activar esta jornada (desactiva la vigente)
+        Activar esta jornada (puede estar activa junto con otras)
       </label>
 
       <div class="partidos-form">

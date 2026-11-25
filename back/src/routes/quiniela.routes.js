@@ -5,7 +5,8 @@ import {
   obtenerJornadaActiva,
   guardarPronostico,
   guardarPronosticosBatch,
-  listarPosiciones
+  listarPosiciones,
+  listarJornadasActivas
 } from '../controllers/quiniela.controller.js';
 import {
   listarJornadas,
@@ -28,6 +29,9 @@ const router = express.Router();
 // 📅 JORNADA ACTIVA (incluye el pronóstico de quien consulta)
 // verifyTokenOptional: si hay sesión se usa el userId; si no, el alias (?alias=).
 router.get('/activa', verifyTokenOptional, obtenerJornadaActiva);
+
+// 🏆 JORNADAS ACTIVAS (selector de quinielas)
+router.get('/jornadas/activas', verifyTokenOptional, listarJornadasActivas);
 
 // 🎯 GUARDAR / ACTUALIZAR PRONÓSTICO
 // Público: sin sesión se exige el alias en el body.

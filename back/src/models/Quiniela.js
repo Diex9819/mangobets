@@ -51,7 +51,7 @@ const partidoSchema = new mongoose.Schema(
 );
 
 // 📅 JORNADA
-// Un conjunto de partidos con una sola jornada activa a la vez.
+// Un conjunto de partidos; puede haber varias activas al mismo tiempo (ver índice abajo).
 const jornadaSchema = new mongoose.Schema(
   {
     nombre: {
@@ -82,16 +82,33 @@ const jornadaSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// 🔒 Una sola jornada ACTIVA a la vez (protección anti doble activación a nivel DB)
-// Mismo patrón que el singleton de CierreFinanciero.
-jornadaSchema.index(
-  { activa: 1 },
-  {
-    unique: true,
-    partialFilterExpression: { activa: true },
-    name: 'uniq_jornada_activa',
+// 🏆 MÚLTIPLES JORNADAS ACTIVAS: no hay restricción de unicidad sobre `activa`,
+//    así se pueden tener varias quinielas activas al mismo tiempo ("Liga MX" +
+//    "Champions League"). Se conserva un índice normal para consultas por estado.
+jornadaSchema.index({ activa: 1 }, { name: 'idx_jornada_activa' });
+
+// 🔄 Nombre del índice legado que se elimina automáticamente al conectarse
+//    (para permitir múltiples jornadas activas sin tocar datos existentes).
+const NOMBRE_INDICE_LEGACY = 'uniq_jornada_activa';
+
+// 🚫 Elimina el índice legado uniq_jornada_activa de la base conectada SI
+//    todavía existe. Ignora el error cuando ya no existe (idempotente) y no
+//    afecta datos: solo elimina el índice.
+export async function dropLegacyIndiceJornadaActiva() {
+  try {
+    const col = mongoose.connection.collection('jornadas');
+    const indices = await col.indexes();
+
+    if (!indices.some((idx) => idx.name === NOMBRE_INDICE_LEGACY)) {
+      return;
+    }
+
+    await col.dropIndex(NOMBRE_INDICE_LEGACY);
+    console.log('[dropLegacyIndiceJornadaActiva] Índice legado eliminado.');
+  } catch (err) {
+    console.warn('[dropLegacyIndiceJornadaActiva] Error al eliminar índice legado:', err?.message || err);
   }
-);
+}
 
 // 🎯 PRONÓSTICO
 // Un pronóstico por persona y partido. La persona puede ser:

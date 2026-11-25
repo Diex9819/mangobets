@@ -41,6 +41,24 @@
     (jornadaCreada)="cargarJornada()"
   ></app-quiniela-admin>
 
+  <!-- 🏆 SELECTOR DE QUINIELAS ACTIVAS (cuando hay 2 o más: elegir cuál ver) -->
+  <section class="jornadas-selector" *ngIf="jornadasActivas.length > 1">
+    <h3>🏆 Selecciona la Quiniela Activosa</h3>
+    <div class="jornadas-selector-grid">
+      <button
+        type="button"
+        class="btn-jornada-card"
+        *ngFor="let j of jornadasActivas"
+        [class.seleccionada]="jornadaSeleccionadaId === j.id"
+        (click)="seleccionarJornada(j.id)"
+      >
+        <span class="jornada-card-nombre">{{ j.nombre }}</span>
+        <span class="jornada-card-premio">💰 {{ j.premio ?? 0 }} MXN</span>
+        <span class="jornada-card-check" *ngIf="jornadaSeleccionadaId === j.id">✔️</span>
+      </button>
+    </div>
+  </section>
+
   <!-- 📅 JORNADA -->
   <ng-container *ngIf="!cargando && jornada">
 

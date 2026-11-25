@@ -70,6 +70,8 @@ export interface PronosticoBatchItem {
 export interface GuardarPronosticosBatchPayload {
   pronosticos: PronosticoBatchItem[];
   alias?: string;
+  /** 🆔 ID de la jornada activa a usar (por defecto: la más reciente activa) */
+  jornadaId?: string;
 }
 
 export interface GuardarPronosticosBatchResponse {
@@ -77,6 +79,12 @@ export interface GuardarPronosticosBatchResponse {
   guardados: number;
   creados: number;
   pronosticos: Pronostico[];
+}
+
+/** 🏆 Lista de jornadas activas (selector de quinielas) */
+export interface ListarJornadasActivasResponse {
+  success: boolean;
+  jornadas: Jornada[];
 }
 
 export interface PronosticoParticipante {

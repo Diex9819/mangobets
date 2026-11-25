@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { QuinielaService } from '../../services/quiniela.service';
 import { AuthService } from '../../services/auth.service';
-import { PosicionQuiniela, PronosticoParticipante } from '../../models/quiniela.model';
+import { Jornada, PosicionQuiniela, PronosticoParticipante } from '../../models/quiniela.model';
 
 @Component({
   selector: 'app-home',
@@ -17,6 +17,11 @@ export class HomeComponent implements OnInit {
   posiciones: PosicionQuiniela[] = [];
   cargando = true;
   errorMessage = '';
+
+  // 🏆 JORNADAS ACTIVAS (selector de quinielas; backend ya las ordena más reciente primero)
+  jornadasActivas: Jornada[] = [];
+  jornadaSeleccionadaId = '';
+  cargandoJornadasActivas = false;
 
   // 💰 Premio acumulado (bolsa) de la jornada activa
   premio = 0;
@@ -42,7 +47,37 @@ export class HomeComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    this.cargarPosiciones();
+    this.cargarJornadasActivas();
+  }
+
+  // 🏆 Cargar jornadas activas (selector de quinielas)
+  cargarJornadasActivas() {
+    this.cargandoJornadasActivas = true;
+
+    this.quinielaService.getJornadasActivas().subscribe({
+      next: (res) => {
+        this.jornadasActivas = res.jornadas || [];
+        // Default: la más reciente
+        this.jornadaSeleccionadaId = this.jornadasActivas[0]?.id || '';
+        this.cargandoJornadasActivas = false;
+        this.cargarPosiciones();
+      },
+      error: () => {
+        this.cargandoJornadasActivas = false;
+        this.cargarPosiciones();
+      }
+    });
+  }
+
+  // 🔍 Seleccionar quiniela activa y mostrar su Tabla de Posiciones
+  seleccionarJornada(jornadaId: string) {
+    if (!jornadaId || jornadaId === this.jornadaSeleccionadaId) return;
+    this.jornadaSeleccionadaId = jornadaId;
+    this.cargarPosiciones(jornadaId);
+  }
+
+  get jornadaSeleccionadaNombre(): string {
+    return this.jornadasActivas.find((j) => j.id === this.jornadaSeleccionadaId)?.nombre || '';
   }
 
   // 👑 ¿Es administrador? (habilita la edición manual de la bolsa)
@@ -50,12 +85,14 @@ export class HomeComponent implements OnInit {
     return this.authService.getUser()?.role === 'ADMIN';
   }
 
-  // 🏆 Cargar tabla de posiciones (leaderboard) de la jornada activa
-  cargarPosiciones() {
+  // 🏆 Cargar tabla de posiciones de la jornada seleccionada (o activa por defecto)
+  cargarPosiciones(jornadaId?: string) {
     this.cargando = true;
     this.errorMessage = '';
 
-    this.quinielaService.getJornadaActiva().subscribe({
+    const targetId = jornadaId || this.jornadaSeleccionadaId || undefined;
+
+    this.quinielaService.getJornadaActiva({ jornadaId: targetId }).subscribe({
       next: (jornada) => {
         this.jornadaId = jornada.id;
         this.premio = jornada.premio ?? 0;

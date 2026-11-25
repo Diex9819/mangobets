@@ -68,11 +68,8 @@ export const crearJornada = async (req, res) => {
 
     const activar = activa === true;
 
-    // 🔒 Si la nueva queda activa, se desactiva la actual primero
-    // (el índice único parcial impide dos jornadas activas).
-    if (activar) {
-      await Jornada.updateMany({ activa: true }, { $set: { activa: false } });
-    }
+    // 🏆 Múltiples activas: al activar una no se desactiva la vigente
+    // (pueden tenerse varias quinielas activas al mismo tiempo).
 
     const jornada = await Jornada.create({
       nombre: String(nombre).trim(),
@@ -182,12 +179,7 @@ export const activarJornada = async (req, res) => {
       return res.status(404).json({ error: 'Jornada no encontrada', id: jornadaId });
     }
 
-    // 🔒 Se desactiva la vigente antes de activar esta
-    await Jornada.updateMany(
-      { _id: { $ne: jornadaId }, activa: true },
-      { $set: { activa: false } }
-    );
-
+    // 🏆 Múltiples activas: se activa junto con las demás (sin desactivarlas)
     jornada.activa = true;
     await jornada.save();
 
@@ -368,10 +360,6 @@ export const editarJornada = async (req, res) => {
     }
 
     if (activa === true) {
-      await Jornada.updateMany(
-        { _id: { $ne: jornadaId }, activa: true },
-        { $set: { activa: false } }
-      );
       jornada.activa = true;
     } else if (activa === false) {
       jornada.activa = false;

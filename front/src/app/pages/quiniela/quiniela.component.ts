@@ -27,6 +27,11 @@ const ALIAS_KEY = 'quinielaAlias';
 export class QuinielaComponent implements OnInit {
 
   jornada: Jornada | null = null;
+
+  // 🏆 JORNADAS ACTIVAS (selector de quinielas; backend ya las más reciente primero)
+  jornadasActivas: Jornada[] = [];
+  jornadaSeleccionadaId = '';
+
   cargando = true;
   guardando = false;
   errorMessage = '';
@@ -86,7 +91,33 @@ export class QuinielaComponent implements OnInit {
 
   ngOnInit() {
     this.alias = localStorage.getItem(ALIAS_KEY) || '';
-    this.cargarJornada();
+    this.cargarJornadasActivas();
+  }
+
+  // 🏆 Cargar jornadas activas (selector de quinielas)
+  cargarJornadasActivas() {
+    this.quinielaService.getJornadasActivas().subscribe({
+      next: (res) => {
+        this.jornadasActivas = res.jornadas || [];
+        // Default: la más reciente
+        this.jornadaSeleccionadaId = this.jornadasActivas[0]?.id || '';
+        this.cargarJornada();
+      },
+      error: () => {
+        this.cargarJornada();
+      }
+    });
+  }
+
+  // 🔀 Alternar la jornada seleccionada
+  seleccionarJornada(jornadaId: string) {
+    if (!jornadaId || jornadaId === this.jornadaSeleccionadaId) return;
+    this.jornadaSeleccionadaId = jornadaId;
+    this.cargarJornada(jornadaId);
+  }
+
+  get jornadaSeleccionadaNombre(): string {
+    return this.jornadasActivas.find((j) => j.id === this.jornadaSeleccionadaId)?.nombre || '';
   }
 
   // 👤 ¿Hay sesión iniciada?
@@ -107,8 +138,8 @@ export class QuinielaComponent implements OnInit {
   // 🔄 Se incrementa en cada recarga para que el panel de admin se sincronice
   refreshAdminKey = 0;
 
-  // 📅 Cargar la jornada activa
-  cargarJornada() {
+  // 📅 Cargar la jornada activa (jornadaId opcional: selección de quiniela)
+  cargarJornada(jornadaId?: string) {
     this.cargando = true;
     this.errorMessage = '';
 
@@ -120,10 +151,12 @@ export class QuinielaComponent implements OnInit {
     this.drafts = {};
     this.pendiente = null;
 
+    const jornadaIdToLoad = jornadaId || this.jornadaSeleccionadaId || undefined;
+
     // Sin sesión se manda el alias para recuperar el propio pronóstico
     const alias = this.haySesion ? undefined : (this.alias || undefined);
 
-    this.quinielaService.getJornadaActiva(alias).subscribe({
+    this.quinielaService.getJornadaActiva({ alias, jornadaId: jornadaIdToLoad }).subscribe({
       next: (jornada) => {
         this.jornada = jornada;
         this.cargando = false;
@@ -382,19 +415,20 @@ export class QuinielaComponent implements OnInit {
 
     const alias = this.haySesion ? undefined : (this.alias || undefined);
 
-    this.enviarPronosticosBatch(pronosticos, alias);
+    this.enviarPronosticosBatch(pronosticos, alias, this.jornada?.id);
   }
 
   private enviarPronosticosBatch(
     pronosticos: PronosticoBatchItem[],
-    alias?: string
+    alias?: string,
+    jornadaId?: string
   ) {
     this.guardando = true;
     this.errorMessage = '';
     this.aviso = '';
 
     this.quinielaService
-      .guardarPronosticosBatch({ pronosticos, alias })
+      .guardarPronosticosBatch({ pronosticos, alias, jornadaId })
       .subscribe({
         next: (res) => {
           this.guardando = false;
@@ -477,7 +511,7 @@ export class QuinielaComponent implements OnInit {
 
     if (pendiente) {
       // 💾 Envía el lote de pronósticos pendiente ya con el alias confirmado
-      this.enviarPronosticosBatch(pendiente.pronosticos, alias);
+      this.enviarPronosticosBatch(pendiente.pronosticos, alias, this.jornada?.id);
     } else {
       this.cargarJornada();
     }

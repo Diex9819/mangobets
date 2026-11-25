@@ -35,9 +35,33 @@
     <small class="premio-error" *ngIf="premioError">{{ premioError }}</small>
   </div>
 
+  <!-- 🗂️ TARJETAS DE JORNADAS ACTIVAS (cuando hay 2 o más: elegir qué ver) -->
+  <section class="jornadas-activas" *ngIf="jornadasActivas.length > 1">
+    <h3>🏆 Jornadas Activas</h3>
+    <p class="jornadas-activas-texto">
+      Selecciona una quiniela para ver su Tabla de Posiciones sin mezclar datos.
+    </p>
+    <div class="jornadas-activas-grid">
+      <button
+        type="button"
+        class="btn-jornada-card"
+        *ngFor="let j of jornadasActivas"
+        [class.seleccionada]="jornadaSeleccionadaId === j.id"
+        (click)="seleccionarJornada(j.id)"
+      >
+        <span class="jornada-card-nombre">{{ j.nombre }}</span>
+        <span class="jornada-card-premio">💰 {{ j.premio ?? 0 }} MXN</span>
+        <span class="jornada-card-check" *ngIf="jornadaSeleccionadaId === j.id">✔️</span>
+      </button>
+    </div>
+  </section>
+
   <!-- 🏆 TABLA DE POSICIONES (HOME) -->
   <section class="tabla-posiciones" *ngIf="!cargando && !errorMessage && posiciones.length > 0">
-    <h3>🏆 Tabla de Posiciones</h3>
+    <h3>
+      🏆 Tabla de Posiciones
+      <span class="jornada-sel" *ngIf="jornadasActivas.length > 1">— {{ jornadaSeleccionadaNombre }}</span>
+    </h3>
 
     <table class="tabla-posiciones-tabla">
       <thead>
