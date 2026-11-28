@@ -38,6 +38,9 @@ export class HomeComponent implements OnInit {
   // ⏱️ Fecha/hora de inicio de la jornada (primer partido) para privacidad de picks
   private jornadaInicioMs: number | null = null;
 
+  // 🔒 ¿El backend incluyó los picks detallados en esta respuesta? (admin || jornada iniciada)
+  puedeVerPicks?: boolean;
+
   // 🆔 ID de la jornada activa (para actualizar el premio)
   jornadaId = '';
 
@@ -97,16 +100,21 @@ export class HomeComponent implements OnInit {
         this.jornadaId = jornada.id;
         this.premio = jornada.premio ?? 0;
 
-        // ⏱️ Determinar si la jornada ya inició (primer partido)
+        // ⏱️ Determinar si la jornada ya inició (primer partido); seguro contra NaN
         const partidos = jornada.partidos || [];
-        const primer = [...partidos].sort(
-          (a, b) => new Date(a.horario).getTime() - new Date(b.horario).getTime()
-        )[0];
-        this.jornadaInicioMs = primer ? new Date(primer.horario).getTime() : null;
+        const tiempo = (p: { horario?: string; fechaInicio?: string } | undefined) => {
+          const ms = new Date(p?.horario ?? p?.fechaInicio ?? '').getTime();
+          return Number.isNaN(ms) ? Number.POSITIVE_INFINITY : ms;
+        };
+        const primer = [...partidos].sort((a, b) => tiempo(a) - tiempo(b))[0];
+        const inicioMs = primer ? new Date(primer.horario ?? primer.fechaInicio ?? '').getTime() : null;
+        this.jornadaInicioMs = inicioMs !== null && !Number.isNaN(inicioMs) ? inicioMs : null;
 
         this.quinielaService.getPosiciones(jornada.id).subscribe({
           next: (res) => {
-            this.posiciones = res.posicion || [];
+            // 🏆 backend envía `position`; compat `posicion`
+            this.posiciones = res.position ?? res.posicion ?? [];
+            this.puedeVerPicks = res.puedeVerPicks;
             this.cargando = false;
           },
           error: (err) => {
@@ -171,7 +179,12 @@ export class HomeComponent implements OnInit {
   abrirDetalleParticipante(p: PosicionQuiniela) {
     const admin = this.isAdmin;
     const inicio = this.jornadaInicioMs;
-    const bloqueado = !admin && inicio !== null && Date.now() < inicio;
+
+    // 🔒 Sincronizado con backend `puedeVerPicks`. Si el backend no lo envía, fallback local.
+    const bloqueado =
+      this.puedeVerPicks !== undefined
+        ? !this.puedeVerPicks
+        : !admin && inicio !== null && Date.now() < inicio;
 
     this.participanteSeleccionado = p;
     this.mostrarDetalle = true;

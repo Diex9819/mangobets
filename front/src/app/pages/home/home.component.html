@@ -132,6 +132,10 @@
           {{ pr.local || 'Local' }} [ {{ pr.golesLocal }} ] - [ {{ pr.golesVisita }} ] {{ pr.visitante || 'Visitante' }}
         </span>
       </div>
+      <!-- 📭 Empty-state: el modal nunca queda en blanco -->
+      <div class="resumen-item" *ngIf="pronosticosDelParticipante.length === 0">
+        Sin pronósticos registrados.
+      </div>
     </div>
 
     <div class="acciones">

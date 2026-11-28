@@ -42,7 +42,8 @@ router.post('/pronosticos', verifyTokenOptional, pronosticoRateLimit, guardarPro
 router.post('/pronosticos/batch', verifyTokenOptional, pronosticoRateLimit, guardarPronosticosBatch);
 
 // 🏆 POSICIONES / LEADERBOARD
-router.get('/jornadas/:jornadaId/posiciones', listarPosiciones);
+// verifyTokenOptional: pobla req.user cuando hay sesión (para esAdmin/puedeVerPicks); nunca rechaza.
+router.get('/jornadas/:jornadaId/posiciones', verifyTokenOptional, listarPosiciones);
 
 // =====================
 // 👑 ADMIN

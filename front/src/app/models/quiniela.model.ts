@@ -130,7 +130,11 @@ export interface PosicionQuiniela extends ParticipanteQuiniela {
 export interface ListarPosicionesResponse {
   success: boolean;
   jornadaId: string;
-  posicion: PosicionQuiniela[];
+  /** 🔒 true si `pronosticos` viene poblado (admin || jornada iniciada); si no, `pronosticos: []` */
+  puedeVerPicks?: boolean;
+  /** 🏆 lista de posiciones (backend envía `position`; se mantiene `posicion` por compat) */
+  position: PosicionQuiniela[];
+  posicion?: PosicionQuiniela[];
 }
 
 // =====================

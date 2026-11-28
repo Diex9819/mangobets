@@ -523,6 +523,10 @@ export const guardarPronosticosBatch = async (req, res) => {
 // con estadoPago === 'APROBADO'. Puntos: marcador exacto = 2, acierto de
 // resultado = 1, error = 0. Ordena por puntos descendente (empate → más
 // aciertos exactos primero).
+// 📊 Prioridad de estado para agregar participantes (peor-de-N), igual que listarParticipantes:
+//    RECHAZADO > PENDIENTE > APROBADO.
+const ORDEN_ESTADO = { RECHAZADO: 2, PENDIENTE: 1, APROBADO: 0 };
+
 export const listarPosiciones = async (req, res) => {
   try {
     const { jornadaId } = req.params;
@@ -535,17 +539,26 @@ export const listarPosiciones = async (req, res) => {
 
     const ids = jornada.partidos.map((p) => p._id);
 
-    const pronosticos = await Pronostico.find({ partidoId: { $in: ids } }).lean();
+    // 📥 Orden determinista (estadoPago first-seen estable + listado estable)
+    const pronosticos = await Pronostico.find({ partidoId: { $in: ids } })
+      .sort({ _id: 1 })
+      .lean();
 
     // 🔒 Privacidad: los pronósticos detallados de los participantes son
     //    privados hasta que la jornada inicie (hora del primer partido).
     //    El administrador puede verlos en cualquier momento.
     const esAdmin = Boolean(req.user && req.user.role === 'ADMIN');
-    const primerPartido = jornada.partidos
-      .slice()
-      .sort((a, b) => new Date(a.horario).getTime() - new Date(b.horario).getTime())[0];
-    const inicioMs = primerPartido ? new Date(primerPartido.horario).getTime() : null;
-    const iniciada = inicioMs !== null && Date.now() >= inicioMs;
+
+    // ⏱️ Primer partido por `horario` (canónico) o alias `fechaInicio`; orden determinista.
+    const tiempoPartido = (p) => {
+      const ms = new Date(p?.horario ?? p?.fechaInicio).getTime();
+      return Number.isNaN(ms) ? Number.POSITIVE_INFINITY : ms; // fechas inválidas al final
+    };
+    const primerPartido = jornada.partidos.slice().sort((a, b) => tiempoPartido(a) - tiempoPartido(b))[0];
+
+    const inicioMs = primerPartido ? new Date(primerPartido.horario ?? primerPartido.fechaInicio).getTime() : null;
+    const inicioValido = inicioMs !== null && !Number.isNaN(inicioMs);
+    const iniciada = inicioValido && Date.now() >= inicioMs;
     const puedeVerPicks = esAdmin || iniciada;
 
     // 🗂️ Agrupar pronósticos por persona (identidad)
@@ -580,6 +593,12 @@ export const listarPosiciones = async (req, res) => {
         enviado: p.enviado === true,
         estadoPago: p.estadoPago || 'PENDIENTE'
       });
+
+      // 📊 Estado del participante = el "peor" entre sus picks (ORDEN_ESTADO), igual que listarParticipantes
+      const est = p.estadoPago || 'PENDIENTE';
+      if ((ORDEN_ESTADO[est] ?? 0) > (ORDEN_ESTADO[participante.estadoPago] ?? 0)) {
+        participante.estadoPago = est;
+      }
     }
 
     const posiciones = [];
@@ -638,7 +657,9 @@ export const listarPosiciones = async (req, res) => {
     res.json({
       success: true,
       jornadaId,
-      posicion: posiciones
+      // 🔒 ¿Esta respuesta incluye los `pronosticos` detallados? (admin || jornada iniciada)
+      puedeVerPicks,
+      position: posiciones
     });
   } catch (err) {
     console.error('Error en listarPosiciones (quiniela):', err);
