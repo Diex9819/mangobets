@@ -758,21 +758,31 @@ export const eliminarParticipante = async (req, res) => {
     }
 
     const ids = jornada.partidos.map((p) => p._id);
-    const filtro = { partidoId: { $in: ids } };
 
-    if (userId) {
-      filtro.userId = userId;
+    // 🪪 Identidad EXACTA de la tabla: jornada + userId + aliasKey (aliasKey normalizado minúsculas).
+    //    `partidoId` limita SIEMPRE a ESTA jornada. No se borra por `alias` (nombre visible):
+    //    dos personas con el mismo nombre tienen `userId`/`aliasKey` distintos y no se tocan.
+    const userIdRaw = userId === undefined || userId === null || userId === '' ? null : userId.toString();
+    let userIdFiltro = null;
+
+    if (userIdRaw) {
+      if (!mongoose.isValidObjectId(userIdRaw)) {
+        return res.status(400).json({ error: 'userId inválido', userId });
+      }
+      userIdFiltro = new mongoose.Types.ObjectId(userIdRaw);
     }
 
-    if (aliasKey) {
-      filtro.aliasKey = aliasKey;
-    }
+    const aliasKeyFiltro =
+      aliasKey === undefined || aliasKey === null
+        ? null
+        : String(aliasKey).trim().toLowerCase();
 
-    if (!userId && !aliasKey) {
-      // 🪪 Registro "Anónimo": se eliminan los pronósticos sin identidad de la jornada
-      filtro.userId = null;
-      filtro.aliasKey = null;
-    }
+    // 👤 Autenticado: userId exacto. Anónimo: userId null + aliasKey exacto. Sin identidad: Anónimo nulo.
+    const filtro = {
+      partidoId: { $in: ids },
+      userId: userIdFiltro,
+      aliasKey: aliasKeyFiltro
+    };
 
     const result = await Pronostico.deleteMany(filtro);
 

@@ -71,6 +71,7 @@
           <th>Aciertos Exactos</th>
           <th>Resultados</th>
           <th>Puntos</th>
+          <th *ngIf="isAdmin">Acciones</th>
         </tr>
       </thead>
       <tbody>
@@ -84,6 +85,18 @@
           <td>{{ p.aciertosExactos }}</td>
           <td>{{ p.resultados }}</td>
           <td><strong>{{ p.puntos }}</strong></td>
+          <!-- 🗑️ Solo ADMIN: eliminar fila (confirmación previa con alias + puntos) -->
+          <td *ngIf="isAdmin">
+            <button
+              type="button"
+              class="btn-mini peligro"
+              title="Eliminar participante"
+              [disabled]="eliminandoParticipante"
+              (click)="eliminarParticipante(p)"
+            >
+              🗑️
+            </button>
+          </td>
         </tr>
       </tbody>
     </table>

@@ -39,6 +39,23 @@ function normalizarAlias(alias) {
   return limpio.toLowerCase();
 }
 
+// 🔑 Nombre normalizado para comparar identidades (trim + minúsculas)
+function nombreNormalizado(valor) {
+  return typeof valor === 'string' && valor.trim() ? valor.trim().toLowerCase() : null;
+}
+
+// 🔑 Nombre efectivo de un pronóstico/participante (aliasKey canónico; alias como respaldo)
+function nombreParticipante(p) {
+  return nombreNormalizado(p?.aliasKey) || nombreNormalizado(p?.alias) || null;
+}
+
+// 🔑 Llave determinista de agrupación (userId canónico string + aliasKey/alias minúsculas)
+function identidadKey(p) {
+  const userId = p?.userId ? p.userId.toString() : 'anon';
+  const nombre = nombreParticipante(p) || '';
+  return `${userId}:${nombre}`;
+}
+
 // 🪪 Identidad de quien pronostica.
 // - Con sesión (token): el userId manda y el alias es su nombre (referencia).
 // - Sin sesión: el alias es obligatorio y es la identidad del pronóstico.
@@ -62,6 +79,106 @@ function resolverIdentidad(req, aliasBody) {
     datos: {
       userId: null,
       alias: aliasLimpio || null,
+      aliasKey
+    }
+  };
+}
+
+// 🪪 Identidad UNIFICADA por jornada: evita crear una segunda fila con el mismo nombre.
+//   - Autenticado (`req.user`): si existe anónimo con mismo nombre normalizado en esta jornada,
+//     o anónimo que coincide con este usuario, se reutiliza la identidad existente.
+//   - Anónimo: si existe participante (autenticado o anónimo) con mismo nombre normalizado
+//     en esta jornada, se reutiliza esa identidad en vez de crear `anon:nombre`.
+//   - `aliasKey` canónico siempre trim().toLowerCase(). `horario/resultado/estadoPago` no afectan.
+async function resolverIdentidadUnificada(req, aliasBody, jornada) {
+  const base = resolverIdentidad(req, aliasBody);
+
+  const ids = (jornada?.partidos || []).map((p) => p._id);
+  if (!ids.length) return base;
+
+  // nombre normalizado de QUIEN envía
+  const nombreBase =
+    nombreNormalizado(base.datos.aliasKey) ||
+    nombreNormalizado(base.datos.alias) ||
+    nombreNormalizado(req.user?.name) ||
+    null;
+
+  if (!nombreBase) return base;
+
+  // participantes ya existentes EN ESTA JORNADA
+  const existentes = await Pronostico.find({ partidoId: { $in: ids } }).lean();
+  const keyBase = identidadKey(base.datos);
+
+  // candidatos = mismo nombre normalizado en esta jornada (cualquier namespace)
+  const porClave = new Map();
+  for (const p of existentes) {
+    if (nombreParticipante(p) !== nombreBase) continue;
+
+    const key = identidadKey(p);
+    if (!porClave.has(key)) {
+      porClave.set(key, {
+        key,
+        userId: p.userId ?? null,
+        alias: p.alias ?? null,
+        aliasKey: nombreNormalizado(p.aliasKey) || null,
+        count: 0,
+        aprobados: 0
+      });
+    }
+    const c = porClave.get(key);
+    c.count += 1;
+    if ((p.estadoPago || 'PENDIENTE') === 'APROBADO') c.aprobados += 1;
+  }
+
+  // siempre incluir la clave exacta si ya tiene picks
+  if (!porClave.has(keyBase)) {
+    const propio = existentes.find((p) => identidadKey(p) === keyBase);
+    if (propio) {
+      porClave.set(keyBase, {
+        key: keyBase,
+        userId: propio.userId ?? null,
+        alias: propio.alias ?? null,
+        aliasKey: nombreNormalizado(propio.aliasKey) || null,
+        count: 1,
+        aprobados: (propio.estadoPago || 'PENDIENTE') === 'APROBADO' ? 1 : 0
+      });
+    }
+  }
+
+  const candidatos = [...porClave.values()];
+  if (!candidatos.length) return base;
+
+  // canónica: clave exacta primero; luego más picks, más aprobados, orden estable
+  let canon = candidatos.find((c) => c.key === keyBase);
+  if (!canon) {
+    canon = candidatos
+      .slice()
+      .sort((a, b) =>
+        b.count - a.count ||
+        b.aprobados - a.aprobados ||
+        a.key.localeCompare(b.key)
+      )[0];
+  }
+
+  if (canon.userId != null) {
+    // participante autenticado canónico
+    return {
+      filtro: { userId: canon.userId },
+      datos: {
+        userId: canon.userId,
+        alias: canon.alias ?? base.datos.alias ?? null,
+        aliasKey: null
+      }
+    };
+  }
+
+  // participante anónimo canónico (userId null + aliasKey normalizado)
+  const aliasKey = canon.aliasKey || nombreBase;
+  return {
+    filtro: { userId: null, aliasKey },
+    datos: {
+      userId: null,
+      alias: canon.alias ?? base.datos.alias ?? null,
       aliasKey
     }
   };
@@ -264,8 +381,8 @@ export const guardarPronostico = async (req, res) => {
       });
     }
 
-    // 🪪 Identidad del prognosticador
-    const { filtro, datos } = resolverIdentidad(req, alias);
+    // 🪪 Identidad del prognosticador (UNIFICADA por jornada: no crear segunda fila con mismo nombre)
+    const { filtro, datos } = await resolverIdentidadUnificada(req, alias, jornada);
 
     // 💾 Upsert: un pronóstico por persona y partido.
     // Los índices únicos parciales hacen la operación idempotente.
@@ -433,8 +550,8 @@ export const guardarPronosticosBatch = async (req, res) => {
       }
     }
 
-    // 🪪 Identidad del prognosticador
-    const { filtro, datos } = resolverIdentidad(req, alias);
+    // 🪪 Identidad del prognosticador (UNIFICADA por jornada; misma para todo el lote)
+    const { filtro, datos } = await resolverIdentidadUnificada(req, alias, jornada);
 
     const guardados = [];
     let creados = 0;
@@ -565,13 +682,15 @@ export const listarPosiciones = async (req, res) => {
     const participantesMap = new Map();
 
     for (const p of pronosticos) {
-      const key = `${p.userId ?? 'anon'}:${p.aliasKey ?? p.alias ?? ''}`;
+      // 🔑 llave de agrupación normalizada (aliasKey/alias minúsculas; userId canónico string)
+      const key = identidadKey(p);
 
       if (!participantesMap.has(key)) {
         participantesMap.set(key, {
           userId: p.userId ?? null,
           alias: p.alias ?? null,
-          aliasKey: p.aliasKey ?? null,
+          // 🔑 aliasKey real (minúsculas); null si autenticado/no existe. NO usar `alias` como sustituto.
+          aliasKey: nombreNormalizado(p.aliasKey) || null,
           estadoPago: p.estadoPago || 'PENDIENTE',
           pronosticos: []
         });

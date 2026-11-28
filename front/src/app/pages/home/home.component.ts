@@ -202,4 +202,46 @@ export class HomeComponent implements OnInit {
   get pronosticosDelParticipante(): PronosticoParticipante[] {
     return this.participanteSeleccionado?.pronosticos || [];
   }
+
+  // 🗑️ ADMIN: eliminar participante de la tabla (mismo flujo que "Gestionar participantes")
+  //    Usa identidad EXACTA: jornada seleccionada + userId + aliasKey. Confirma antes.
+  eliminandoParticipante = false;
+
+  eliminarParticipante(p: PosicionQuiniela) {
+    if (!this.isAdmin || this.eliminandoParticipante) return;
+
+    const jornadaId = this.jornadaId || this.jornadaSeleccionadaId;
+    if (!jornadaId) return;
+
+    const nombre = p.alias || p.userId || 'Anónimo';
+    const puntos = p.puntos ?? 0;
+
+    // ⚠️ Confirmación previa mostrando alias + puntos de la fila para no borrar al equivocado
+    const confirmado = window.confirm(
+      `¿Eliminar a "${nombre}" de esta jornada?\n` +
+      `Puntos: ${puntos}\n\n` +
+      `Se borrarán sus pronósticos asociados en esta jornada. No se puede deshacer.`
+    );
+    if (!confirmado) return;
+
+    this.eliminandoParticipante = true;
+
+    this.quinielaService
+      .eliminarParticipante(jornadaId, {
+        userId: p.userId ?? null,
+        aliasKey: p.aliasKey ?? null
+      })
+      .subscribe({
+        next: () => {
+          this.eliminandoParticipante = false;
+          // 🔄 Recargar la tabla para que el registro eliminado (p. ej. duplicado con 0 pts) desaparezca
+          this.cargarPosiciones(jornadaId);
+        },
+        error: (err) => {
+          this.eliminandoParticipante = false;
+          this.errorMessage =
+            err.error?.error || err.error?.message || 'Error al eliminar el participante';
+        }
+      });
+  }
 }
