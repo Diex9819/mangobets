@@ -46,6 +46,11 @@ const partidoSchema = new mongoose.Schema(
     },
     // 🏁 Resultado oficial ya publicado (marcador exacto). No publicado → no existe.
     resultadoOficial: resultadoSchema,
+    // ⛔ Cierre manual por partido (admin): si true, no se aceptan picks aunque no haya empezado.
+    cerrado: {
+      type: Boolean,
+      default: false,
+    },
   },
   { _id: true }
 );
@@ -72,6 +77,12 @@ const jornadaSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: [0, 'premio debe ser >= 0'],
+    },
+    // 🔓 Interruptor manual de recepción (admin). false → nadie puede pronosticar en esta jornada.
+    //    No afecta visibilidad (usa `activa`) ni resultados/puntos; independiente del reloj por partido.
+    recepcionAbierta: {
+      type: Boolean,
+      default: true,
     },
     partidos: [partidoSchema],
     esDemo: {

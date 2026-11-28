@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { Jornada, Pronostico } from '../models/Quiniela.js';
+import { partidoAbiertoParaPronosticar } from '../utils/quinielaCierre.js';
 
 // 🪪 Máximo de caracteres del alias
 const MAX_ALIAS = 40;
@@ -237,15 +238,6 @@ export const guardarPronostico = async (req, res) => {
       }
     }
 
-    // 🔒 Bloqueo por horario: si el primer partido ya se jugó, no se puede pronosticar
-    const { cerrada } = await verificarCierreJornada(jornada);
-
-    if (cerrada) {
-      return res.status(423).json({
-        error: 'Los pronósticos para esta jornada ya cerraron'
-      });
-    }
-
     // ⚽ El partido debe pertenecer a la jornada activa
     const partido = jornada.partidos.id(partidoId);
 
@@ -264,6 +256,14 @@ export const guardarPronostico = async (req, res) => {
       });
     }
 
+    // 🔒 Bloqueo POR PARTIDO: horario/fechaInicio pasado, partido cerrado o recepción cerrada
+    if (!partidoAbiertoParaPronosticar(partido, jornada)) {
+      return res.status(423).json({
+        error: 'Los pronósticos para este partido ya cerraron',
+        partidoId
+      });
+    }
+
     // 🪪 Identidad del prognosticador
     const { filtro, datos } = resolverIdentidad(req, alias);
 
@@ -271,7 +271,10 @@ export const guardarPronostico = async (req, res) => {
     // Los índices únicos parciales hacen la operación idempotente.
     const resultado = await Pronostico.updateOne(
       { ...filtro, partidoId: partido._id },
-      { $set: { ...datos, golesLocal, golesVisita, enviado: true, estadoPago: 'PENDIENTE' } },
+      {
+        $set: { ...datos, golesLocal, golesVisita, enviado: true },
+        $setOnInsert: { estadoPago: 'PENDIENTE' }
+      },
       {
         upsert: true,
         runValidators: true,
@@ -315,31 +318,6 @@ export const guardarPronostico = async (req, res) => {
     res.status(500).json({ error: 'Error al guardar el pronóstico' });
   }
 };
-
-// 🔒 Verificación de cierre de la jornada.
-// Si el primer partido de la jornada ya se jugó (hora de inicio pasada),
-// ya no se aceptan nuevos pronósticos (bloqueo por horario).
-async function verificarCierreJornada(jornada) {
-  const partidos = jornada?.partidos || [];
-
-  if (!partidos.length) {
-    return { cerrada: false };
-  }
-
-  // ⏱️ Primer partido de la jornada (el más próximo en el tiempo)
-  const primerPartido = [...partidos].sort(
-    (a, b) => new Date(a.horario).getTime() - new Date(b.horario).getTime()
-  )[0];
-
-  if (!primerPartido) {
-    return { cerrada: false };
-  }
-
-  const inicio = new Date(primerPartido.horario).getTime();
-  const cerrada = !Number.isNaN(inicio) && Date.now() > inicio;
-
-  return { cerrada, primerPartido };
-}
 
 // 🎯 POST /api/quinielas/pronosticos/batch
 // Guarda VARIOS pronósticos (marcador exacto) en un solo request.
@@ -426,17 +404,9 @@ export const guardarPronosticosBatch = async (req, res) => {
       }
     }
 
-    // 🔒 Bloqueo por horario: si el primer partido ya se jugó, no se puede pronosticar
-    const { cerrada } = await verificarCierreJornada(jornada);
-
-    if (cerrada) {
-      return res.status(423).json({
-        error: 'Los pronósticos para esta jornada ya cerraron'
-      });
-    }
-
     // 🧹 Prevalidación de TODO el lote ANTES de guardar (evita escrituras parciales):
-    //    cada partido debe pertenecer a la jornada activa y estar sin resultado oficial.
+    //    cada partido debe pertenecer a la jornada activa, estar sin resultado oficial
+    //    y estar ABIERTO por partido (horario/fechaInicio, cerrado, recepción).
     for (const p of pronosticos) {
       const partido = jornada.partidos.id(p.partidoId);
 
@@ -451,6 +421,13 @@ export const guardarPronosticosBatch = async (req, res) => {
       if (partido.resultadoOficial) {
         return res.status(400).json({
           error: 'El partido ya tiene resultado oficial, no se puede pronosticar',
+          partidoId: p.partidoId
+        });
+      }
+
+      if (!partidoAbiertoParaPronosticar(partido, jornada)) {
+        return res.status(423).json({
+          error: 'Los pronósticos para este partido ya cerraron',
           partidoId: p.partidoId
         });
       }
@@ -482,9 +459,20 @@ export const guardarPronosticosBatch = async (req, res) => {
         });
       }
 
+      // 🔒 Defensa extra: re-chequeo por partido antes de escribir
+      if (!partidoAbiertoParaPronosticar(partido, jornada)) {
+        return res.status(423).json({
+          error: 'Los pronósticos para este partido ya cerraron',
+          partidoId: p.partidoId
+        });
+      }
+
       const resultado = await Pronostico.updateOne(
         { ...filtro, partidoId: p.partidoId },
-        { $set: { ...datos, golesLocal: p.golesLocal, golesVisita: p.golesVisita, enviado: true, estadoPago: 'PENDIENTE' } },
+        {
+          $set: { ...datos, golesLocal: p.golesLocal, golesVisita: p.golesVisita, enviado: true },
+          $setOnInsert: { estadoPago: 'PENDIENTE' }
+        },
         {
           upsert: true,
           runValidators: true,
@@ -665,6 +653,7 @@ function formatJornada(doc, miPronosticoDe) {
     nombre: doc.nombre,
     activa: doc.activa,
     premio: doc.premio ?? 0,
+    recepcionAbierta: doc.recepcionAbierta !== false,
     partidos: doc.partidos.map((p) => {
       const miPronostico = miPronosticoDe(p._id);
 
@@ -673,6 +662,9 @@ function formatJornada(doc, miPronosticoDe) {
         local: p.local,
         visitante: p.visitante,
         horario: p.horario,
+        fechaInicio: p.horario, // 🏷️ alias de horario (campo canónico: horario)
+        cerrado: p.cerrado === true,
+        puedePronosticar: partidoAbiertoParaPronosticar(p, doc),
         resultadoOficial: p.resultadoOficial,
         miPronostico,
         puntos:

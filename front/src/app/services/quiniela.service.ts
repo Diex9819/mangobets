@@ -184,10 +184,10 @@ export class QuinielaService {
     });
   }
 
-  // ➕ Agregar un partido a una jornada existente
+  // ➕ Agregar un partido a una jornada existente (en cualquier momento; no toca lo previo)
   agregarPartido(
     jornadaId: string,
-    data: { local: string; visitante: string; horario: string }
+    data: { local: string; visitante: string; horario?: string; fechaInicio?: string }
   ): Observable<Jornada> {
     return this.http.post<Jornada>(
       `${this.apiUrl}/admin/jornadas/${jornadaId}/partidos`,

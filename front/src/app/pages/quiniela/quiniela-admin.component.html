@@ -85,6 +85,9 @@
             {{ j.activa ? '🟢 Activa' : 'Inactiva' }}
           </span>
           <span class="jornada-count">{{ j.partidos.length }} partidos</span>
+          <span class="badge" [class.activa]="j.recepcionAbierta !== false">
+            {{ j.recepcionAbierta === false ? '🔒 Recepción cerrada' : '🔓 Recepción abierta' }}
+          </span>
         </div>
 
         <ng-template #editandoNombre>
@@ -111,6 +114,14 @@
             (click)="iniciarEdicionNombre(j)"
           >
             ✏️
+          </button>
+
+          <button
+            class="btn-mini"
+            [title]="j.recepcionAbierta === false ? 'Abrir recepción' : 'Cerrar recepción'"
+            (click)="toggleRecepcionAbierta(j)"
+          >
+            {{ j.recepcionAbierta === false ? '🔓 Abrir recepción' : '🔒 Cerrar recepción' }}
           </button>
 
           <button
@@ -164,9 +175,17 @@
                 <span class="badge resultado" *ngIf="p.resultadoOficial">
                   🏁 {{ p.resultadoOficial.golesLocal }} - {{ p.resultadoOficial.golesVisita }}
                 </span>
+                <span class="badge" *ngIf="p.cerrado">🔒 Cerrado</span>
               </div>
 
               <div class="partido-acciones">
+                <button
+                  class="btn-mini"
+                  [title]="p.cerrado ? 'Reabrir partido' : 'Cerrar partido'"
+                  (click)="toggleCerrado(j.id, p)"
+                >
+                  {{ p.cerrado ? '🔓' : '🔒' }}
+                </button>
                 <button
                   class="btn-mini"
                   title="Editar partido"

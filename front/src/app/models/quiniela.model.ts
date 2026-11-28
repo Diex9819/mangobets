@@ -15,7 +15,14 @@ export interface PartidoQuiniela {
   id: string;
   local: string;
   visitante: string;
+  /** ⏰ inicio del partido (campo canónico: horario) */
   horario: string;
+  /** 🏷️ alias de `horario` (por si el backend lo expone como fechaInicio) */
+  fechaInicio?: string;
+  /** ⛔ cierre manual por partido (admin); default false */
+  cerrado?: boolean;
+  /** 🔓 true si este partido acepta pronósticos ahora (calculado por backend) */
+  puedePronosticar?: boolean;
   resultadoOficial: MarcadorGoles | null;
   miPronostico: MarcadorGoles | null;
   puntos?: number | null;
@@ -27,6 +34,8 @@ export interface Jornada {
   activa: boolean;
   /** 💰 Premio acumulado (bolsa) para la jornada */
   premio?: number;
+  /** 🔓 interruptor manual de recepción (admin); default true */
+  recepcionAbierta?: boolean;
   partidos: PartidoQuiniela[];
   createdAt?: string;
   updatedAt?: string;
@@ -131,8 +140,13 @@ export interface ListarPosicionesResponse {
 export interface PartidoInput {
   local: string;
   visitante: string;
+  /** ⏰ inicio del partido (canónico) */
   horario: string;
+  /** 🏷️ alias de horario */
+  fechaInicio?: string;
   resultadoOficial?: MarcadorGoles | null;
+  /** ⛔ cierre manual por partido; default false */
+  cerrado?: boolean;
 }
 
 export interface CrearJornadaPayload {
@@ -144,19 +158,29 @@ export interface CrearJornadaPayload {
 export interface EditarPartidoPayload {
   local?: string;
   visitante?: string;
+  /** ⏰ inicio del partido (canónico) */
   horario?: string;
+  /** 🏷️ alias de horario */
+  fechaInicio?: string;
+  /** ⛔ cierre manual por partido */
+  cerrado?: boolean;
 }
 
 export interface EditarJornadaPartidoPayload {
   id: string;
   local?: string;
   visitante?: string;
+  /** ⏰ inicio del partido (canónico) */
   horario?: string;
+  /** 🏷️ alias de horario */
+  fechaInicio?: string;
 }
 
 export interface EditarJornadaPayload {
   nombre?: string;
   activa?: boolean;
+  /** 🔓 interruptor manual de recepción */
+  recepcionAbierta?: boolean;
   partidos?: EditarJornadaPartidoPayload[];
 }
 

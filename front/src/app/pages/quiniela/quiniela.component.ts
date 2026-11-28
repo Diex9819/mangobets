@@ -37,10 +37,8 @@ export class QuinielaComponent implements OnInit {
   errorMessage = '';
   aviso = '';
 
-  // 🔒 ¿La jornada ya cerró? (bloqueo por horario del primer partido)
-  bloqueada = false;
-
   // ✅ ¿La quiniela ya fue enviada formalmente? (flujo de 2 pasos: resumen → confirmar)
+  //    INFORMATIVO: ya NO bloquea. El bloqueo es por partido (partidoCerrado).
   enviada = false;
 
   // ⚠️ Aviso de bloqueo: el usuario ya envió sus resultados y están bloqueados
@@ -161,15 +159,16 @@ export class QuinielaComponent implements OnInit {
         this.jornada = jornada;
         this.cargando = false;
         this.refreshAdminKey++;
-        this.bloqueada = this.esJornadaCerrada(jornada);
         this.enviada = (jornada.partidos || []).some((p) => p.miPronostico?.enviado);
 
-        // ⚠️ Si la jornada ya fue enviada por este usuario/alias → bloquear pronósticos
+        // ℹ️ Si la jornada ya fue enviada por este usuario/alias: los partidos
+        //    ya cerrados siguen bloqueados, pero los NUEVOS partidos disponibles
+        //    se pueden enviar. Pronósticos y puntos previos quedan intactos.
         if (this.enviada) {
           const ident = this.haySesion
             ? this.nombreSesion
             : this.alias;
-          this.advertencia = `⚠️ El usuario ${ident || 'invitado'} ya envió sus resultados para esta jornada y están bloqueados.`;
+          this.advertencia = `ℹ️ El usuario ${ident || 'invitado'} ya envió sus resultados. Los partidos ya cerrados siguen bloqueados; puedes enviar solo los partidos nuevos disponibles.`;
         } else {
           this.advertencia = '';
         }
@@ -188,31 +187,40 @@ export class QuinielaComponent implements OnInit {
     });
   }
 
-  // 🔒 ¿La jornada ya cerró? (bloqueo por horario del primer partido)
-  private esJornadaCerrada(jornada: Jornada): boolean {
-    const partidos = jornada?.partidos || [];
+  // 🔒 Bloqueo POR PARTIDO (no global): espejo de `partidoAbiertoParaPronosticar` del backend.
+  //   Cerrado si: recepción cerrada por admin, partido `cerrado`, ya tiene `resultadoOficial`,
+  //   o ya empezó (Date.now() > inicioMs leyendo `horario` ?? `fechaInicio`; fecha inválida ⇒ no cierra).
+  partidoCerrado(partido: PartidoQuiniela): boolean {
+    if (this.jornada?.recepcionAbierta === false) return true; // interruptor manual admin
+    if (!partido) return true;
+    if (partido.cerrado === true) return true;                 // cierre manual por partido
+    if (partido.resultadoOficial) return true;                 // ya tiene resultado oficial
 
-    if (!partidos.length) {
-      return false;
-    }
+    const inicio = new Date(partido.horario ?? partido.fechaInicio ?? '').getTime();
+    return !Number.isNaN(inicio) && Date.now() > inicio;       // ya empezó
+  }
 
-    // ⏱️ Primer partido de la jornada (el más próximo en el tiempo)
-    const primerPartido = [...partidos].sort(
-      (a, b) => new Date(a.horario).getTime() - new Date(b.horario).getTime()
-    )[0];
+  // 🟢 ¿Este partido acepta picks ahora?
+  partidoPronosticable(partido: PartidoQuiniela): boolean {
+    return !this.partidoCerrado(partido);
+  }
 
-    if (!primerPartido) {
-      return false;
-    }
+  // 🧮 Partidos pronosticables ahora
+  get partidosPronosticables(): PartidoQuiniela[] {
+    return (this.jornada?.partidos || []).filter((p) => this.partidoPronosticable(p));
+  }
 
-    const inicio = new Date(primerPartido.horario).getTime();
+  // 🆕 Partidos NUEVOS disponibles para enviar: pronosticables y (sin pick previo o con borrador modificado).
+  //    Los pronósticos y puntos anteriores quedan intactos; NO se re-envían picks previos sin cambios.
+  get partidosNuevosParaEnviar(): PartidoQuiniela[] {
+    return this.partidosPronosticables.filter(
+      (p) => !p.miPronostico?.enviado || !!this.drafts[p.id]
+    );
+  }
 
-    if (Number.isNaN(inicio)) {
-      return false;
-    }
-
-    // 🔒 Cerrada cuando ya pasó el horario del primer partido
-    return Date.now() > inicio;
+  // 🔘 ¿Hay partidos nuevos disponibles para enviar?
+  get hayPartidosPronosticables(): boolean {
+    return this.partidosNuevosParaEnviar.length > 0;
   }
 
   // 🎯 Marcador efectivo de un partido: borrador local si existe, si no el pronóstico guardado.
@@ -239,9 +247,7 @@ export class QuinielaComponent implements OnInit {
   // El guardado real ocurre por lote con el botón "💾 Guardar Quiniela".
   // Cada lado se actualiza de forma 100% independiente en su propio draft.
   actualizarGoles(partido: PartidoQuiniela, lado: 'L' | 'V', valor: number) {
-    if (this.bloqueada) return; // la jornada ya cerró
-    if (this.enviada) return; // ya se envió → bloqueado
-    if (partido.resultadoOficial) return;
+    if (this.partidoCerrado(partido)) return; // bloqueo por partido (no global)
 
     // 🔒 El borrador se completa: siempre almacenamos un marcador entero >= 0,
     //    aunque el usuario haya editado un solo lado o borrado un campo.
@@ -256,46 +262,33 @@ export class QuinielaComponent implements OnInit {
     this.drafts[partido.id] = draft;
   }
 
-  // 💾 Guardar TODA la quiniela (todos los partidos pronosticables) en un solo request
+  // 💾 Guardar SOLO los partidos nuevos disponibles (pronosticables y sin pick previo intacto)
+  //    en un solo request. Los pronósticos y puntos anteriores NO se re-envían ni se alteran.
   guardarQuiniela(): void {
     if (this.guardando) return;
-    if (this.bloqueada) return;
-
-    // 🔒 Bloqueo estricto: si ya se envió, no se permite reintentar
-    if (this.enviada) {
-      this.advertencia = `⚠️ El usuario ${this.haySesion ? this.nombreSesion : this.alias || 'invitado'} ya envió sus resultados para esta jornada y están bloqueados.`;
-      return;
-    }
-
     if (!this.jornada) return;
 
-    const hayAlgo = this.jornada.partidos.some(
-      (p) => !p.resultadoOficial && (!!p.miPronostico || this.drafts[p.id])
-    );
+    const partidos = this.partidosNuevosParaEnviar;
 
-    if (!hayAlgo) {
-      this.aviso = '✅ Sin pronósticos para guardar';
+    if (partidos.length === 0) {
+      this.aviso = '✅ Sin pronósticos nuevos para guardar';
       return;
     }
 
-    const pronosticos = this.jornada.partidos
-      .filter((p) => !p.resultadoOficial)
-      .map((p) => ({
-        partidoId: p.id,
-        golesLocal: this.marcadorActual(p).golesLocal,
-        golesVisita: this.marcadorActual(p).golesVisita
-      }));
+    const pronosticos = partidos.map((p) => ({
+      partidoId: p.id,
+      golesLocal: this.marcadorActual(p).golesLocal,
+      golesVisita: this.marcadorActual(p).golesVisita
+    }));
 
-    // 📋 Armamos el resumen de la quiniela (marcadores seleccionados)
-    this.resumenPartidos = this.jornada.partidos
-      .filter((p) => !p.resultadoOficial)
-      .map((p) => ({
-        partidoId: p.id,
-        local: p.local,
-        visitante: p.visitante,
-        golesLocal: this.marcadorActual(p).golesLocal,
-        golesVisita: this.marcadorActual(p).golesVisita
-      }));
+    // 📋 Armamos el resumen de la quiniela (solo los nuevos partidos a enviar)
+    this.resumenPartidos = partidos.map((p) => ({
+      partidoId: p.id,
+      local: p.local,
+      visitante: p.visitante,
+      golesLocal: this.marcadorActual(p).golesLocal,
+      golesVisita: this.marcadorActual(p).golesVisita
+    }));
 
     // 🪪 Sin sesión y sin alias → primero se pide el alias
     if (!this.haySesion && !this.alias) {

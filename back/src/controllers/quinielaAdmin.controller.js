@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { Jornada, Pronostico } from '../models/Quiniela.js';
+import { partidoAbiertoParaPronosticar } from '../utils/quinielaCierre.js';
 
 // 📅 ¿El valor es una fecha válida?
 function esFechaValida(valor) {
@@ -41,9 +42,11 @@ export const crearJornada = async (req, res) => {
         if (!p?.visitante || !String(p.visitante).trim()) {
           errors.push({ field: `partidos.${i}.visitante`, message: 'visitante es requerido' });
         }
-        if (!p?.horario) {
+        // horario es canónico; se acepta `fechaInicio` como alias
+        const horario = p?.horario ?? p?.fechaInicio;
+        if (!horario) {
           errors.push({ field: `partidos.${i}.horario`, message: 'horario es requerido' });
-        } else if (!esFechaValida(p.horario)) {
+        } else if (!esFechaValida(horario)) {
           errors.push({ field: `partidos.${i}.horario`, message: 'horario no es una fecha válida' });
         }
         if (p?.resultadoOficial) {
@@ -77,7 +80,7 @@ export const crearJornada = async (req, res) => {
       partidos: partidos.map((p) => ({
         local: String(p.local).trim(),
         visitante: String(p.visitante).trim(),
-        horario: new Date(p.horario),
+        horario: new Date(p.horario ?? p.fechaInicio),
         resultadoOficial: p?.resultadoOficial
           ? {
               golesLocal: Number(p.resultadoOficial.golesLocal),
@@ -105,10 +108,14 @@ export const crearJornada = async (req, res) => {
 };
 
 // 👑 AGREGAR PARTIDO A UNA JORNADA EXISTENTE
+// Funciona en CUALQUIER momento: no exige jornada inactiva, ni primer partido en futuro,
+// ni ausencia de resultados previos. NO toca partidos existentes, NO toca Pronostico,
+// NO toca estadoPago, NO resetea recepcionAbierta. `horario` canónico; alias `fechaInicio`.
 export const agregarPartido = async (req, res) => {
   try {
     const { jornadaId } = req.params;
-    const { local, visitante, horario } = req.body;
+    const { local, visitante } = req.body;
+    const horario = req.body?.horario ?? req.body?.fechaInicio;
 
     if (!mongoose.isValidObjectId(jornadaId)) {
       return res.status(400).json({ error: 'ID de jornada inválido' });
@@ -142,10 +149,12 @@ export const agregarPartido = async (req, res) => {
     }
 
     // ⚽ Se agrega el nuevo partido al arreglo de la jornada (sin resultado aún)
+    //    _id nuevo generado por Mongoose; NO se modifican partidos previos ni Pronosticos.
     jornada.partidos.push({
       local: String(local).trim(),
       visitante: String(visitante).trim(),
-      horario: new Date(horario)
+      horario: new Date(horario),
+      cerrado: false
     });
 
     await jornada.save();
@@ -295,6 +304,12 @@ export const editarJornada = async (req, res) => {
       errors.push({ field: 'activa', message: 'activa debe ser booleano' });
     }
 
+    // 🔓 Interruptor manual de recepción (admin)
+    const { recepcionAbierta } = req.body || {};
+    if (recepcionAbierta !== undefined && typeof recepcionAbierta !== 'boolean') {
+      errors.push({ field: 'recepcionAbierta', message: 'recepcionAbierta debe ser booleano' });
+    }
+
     let partidosUpdates = null;
     if (partidos !== undefined) {
       if (!Array.isArray(partidos)) {
@@ -314,8 +329,10 @@ export const editarJornada = async (req, res) => {
             return;
           }
 
-          if (p.horario !== undefined) {
-            if (!p.horario || !esFechaValida(p.horario)) {
+          // horario canónico; alias `fechaInicio`
+          const horario = p.horario ?? p.fechaInicio;
+          if (horario !== undefined) {
+            if (!horario || !esFechaValida(horario)) {
               errors.push({ field: `partidos.${i}.horario`, message: 'horario no es una fecha válida' });
             }
           }
@@ -334,7 +351,8 @@ export const editarJornada = async (req, res) => {
     if (
       nombre === undefined &&
       activa === undefined &&
-      partidos === undefined
+      partidos === undefined &&
+      recepcionAbierta === undefined
     ) {
       errors.push({ field: 'body', message: 'No hay cambios para aplicar' });
     }
@@ -355,7 +373,8 @@ export const editarJornada = async (req, res) => {
 
         if (p.local !== undefined) partidoDoc.local = String(p.local).trim();
         if (p.visitante !== undefined) partidoDoc.visitante = String(p.visitante).trim();
-        if (p.horario !== undefined) partidoDoc.horario = new Date(p.horario);
+        const horario = p.horario ?? p.fechaInicio;
+        if (horario !== undefined) partidoDoc.horario = new Date(horario);
       });
     }
 
@@ -363,6 +382,11 @@ export const editarJornada = async (req, res) => {
       jornada.activa = true;
     } else if (activa === false) {
       jornada.activa = false;
+    }
+
+    // 🔓 Interruptor manual de recepción
+    if (recepcionAbierta !== undefined) {
+      jornada.recepcionAbierta = recepcionAbierta;
     }
 
     await jornada.save();
@@ -456,11 +480,13 @@ export const eliminarJornada = async (req, res) => {
   }
 };
 
-// 👑 EDITAR PARTIDO (corregir local / visitante / horario)
+// 👑 EDITAR PARTIDO (corregir local / visitante / horario + cierre manual `cerrado`)
 export const editarPartido = async (req, res) => {
   try {
     const { jornadaId, partidoId } = req.params;
-    const { local, visitante, horario } = req.body;
+    const { local, visitante, cerrado } = req.body;
+    // horario canónico; alias `fechaInicio`
+    const horario = req.body?.horario ?? req.body?.fechaInicio;
 
     if (!mongoose.isValidObjectId(jornadaId) || !mongoose.isValidObjectId(partidoId)) {
       return res.status(400).json({ error: 'ID de jornada o de partido inválido' });
@@ -507,6 +533,15 @@ export const editarPartido = async (req, res) => {
         errors.push({ field: 'horario', message: 'horario no es una fecha válida' });
       } else {
         partido.horario = new Date(horario);
+      }
+    }
+
+    // ⛔ Cierre manual por partido
+    if (cerrado !== undefined) {
+      if (typeof cerrado !== 'boolean') {
+        errors.push({ field: 'cerrado', message: 'cerrado debe ser booleano' });
+      } else {
+        partido.cerrado = cerrado;
       }
     }
 
@@ -759,11 +794,15 @@ function formatJornadaAdmin(doc) {
     nombre: doc.nombre,
     activa: doc.activa,
     premio: doc.premio ?? 0,
+    recepcionAbierta: doc.recepcionAbierta !== false,
     partidos: doc.partidos.map((p) => ({
       id: p._id.toString(),
       local: p.local,
       visitante: p.visitante,
       horario: p.horario,
+      fechaInicio: p.horario, // 🏷️ alias de horario (campo canónico: horario)
+      cerrado: p.cerrado === true,
+      puedePronosticar: partidoAbiertoParaPronosticar(p, doc),
       resultadoOficial: p.resultadoOficial,
       miPronostico: null
     })),

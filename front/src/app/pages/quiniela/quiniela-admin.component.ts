@@ -297,6 +297,38 @@ export class QuinielaAdminComponent implements OnInit, OnChanges {
       });
   }
 
+  // 🔓 Alternar interruptor manual de recepción de pronósticos (jornada)
+  toggleRecepcionAbierta(jornada: Jornada) {
+    const nuevo = !(jornada.recepcionAbierta !== false);
+
+    this.quinielaService
+      .editarJornada(jornada.id, { recepcionAbierta: nuevo })
+      .subscribe({
+        next: () => {
+          this.cargarJornadas();
+          this.publicado.emit();
+        },
+        error: (err) => {
+          this.createError = err.error?.error || 'Error al cambiar la recepción';
+        }
+      });
+  }
+
+  // ⛔ Alternar cierre manual por partido
+  toggleCerrado(jornadaId: string, partido: PartidoQuiniela) {
+    this.quinielaService
+      .editarPartido(jornadaId, partido.id, { cerrado: !(partido.cerrado === true) })
+      .subscribe({
+        next: () => {
+          this.cargarJornadas();
+          this.publicado.emit();
+        },
+        error: (err) => {
+          this.createError = err.error?.error || 'Error al cambiar el cierre del partido';
+        }
+      });
+  }
+
   // ➕ Agregar un partido a una jornada existente
   abrirAgregarPartido(jornadaId: string) {
     this.agregarPartidoAbiertoId = jornadaId;
